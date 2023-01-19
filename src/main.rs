@@ -7,8 +7,8 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(|| {
         App::new()
-            .route("/", web::get().to(handlers::index))
-            .route("/hello", web::get().to(handlers::hello))
+            .service(handlers::index)
+            .service(handlers::hello)
     })
     .bind("127.0.0.1:8000")?
     .run()
