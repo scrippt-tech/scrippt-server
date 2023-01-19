@@ -10,7 +10,7 @@ async fn main() -> std::io::Result<()> {
             .route("/", web::get().to(handlers::index))
             .route("/hello", web::get().to(handlers::hello))
     })
-    .bind("127.0.0.1:8080")?
+    .bind("127.0.0.1:8000")?
     .run()
     .await
 }
