@@ -9,7 +9,6 @@ if [ "$1" = "dev" ]; then
     cargo watch -x run -p server
 elif [ "$1" = "prod" ]; then
     cargo build --release
-    ./target/release/server
 else
     echo "Usage: ./bin/server [dev|prod]"
 fi

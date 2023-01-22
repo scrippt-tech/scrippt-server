@@ -1,14 +1,22 @@
-use actix_web::{App, web, HttpServer};
+use actix_web::{App, web, get, HttpServer};
 mod account_handlers;
 mod profile_handlers;
+mod db;
+
+#[get("/")]
+async fn index() -> &'static str {
+    "Scrippt server"
+}
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=info");
 
+    let _db = db::init_db().await;
+
     HttpServer::new(|| {
         App::new()
-            .route("/", web::get().to(|| async { "Hello world!!" }))
+            .service(index)
             .service(
                 web::scope("/account")
                     .service(account_handlers::get_account)
