@@ -1,7 +1,7 @@
+//use mongodb::Client;
 use actix_web::{App, web, get, HttpServer};
 mod account_handlers;
 mod profile_handlers;
-mod db;
 
 #[get("/")]
 async fn index() -> &'static str {
@@ -11,8 +11,9 @@ async fn index() -> &'static str {
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=info");
-
-    let _db = db::init_db().await;
+    // let client_options = mongodb::options::ClientOptions::parse("mongodb://localhost:27017").unwrap();
+    // let client = mongodb::sync::Client::with_options(client_options).unwrap();
+    // let db = client.database("mydb");
 
     HttpServer::new(|| {
         App::new()
