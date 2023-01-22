@@ -8,13 +8,14 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(|| {
         App::new()
+            .route("/", web::get().to(|| async { "Hello world!!" }))
             .service(
                 web::scope("/account")
-                    .service(account_handlers::get_users)
-                    .service(account_handlers::get_user_by_id)
-                    .service(account_handlers::create_user)
-                    .service(account_handlers::update_user)
-                    .service(account_handlers::delete_user)
+                    .service(account_handlers::get_account)
+                    .service(account_handlers::get_account_by_id)
+                    .service(account_handlers::create_account)
+                    .service(account_handlers::update_account)
+                    .service(account_handlers::delete_account)
                 )
             .service(
                 web::scope("/profile")
