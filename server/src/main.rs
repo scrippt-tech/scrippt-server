@@ -1,10 +1,10 @@
 mod models;
-mod account_handlers;
-mod profile_handlers;
+mod handlers;
 mod repository;
 
 use actix_web::{App, web, get, HttpServer, HttpResponse};
-use repository::AccountRepository;
+use handlers::{account_handlers, profile_handlers};
+use repository::account_repository::AccountRepository;
 use env_logger::fmt::Color;
 use std::io::Write;
 use log;
@@ -17,7 +17,6 @@ async fn index() -> HttpResponse {
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "info");
-    // init logger with line and file info
     env_logger::builder()
         .format(|buf, record| {
             let level = record.level();
@@ -32,7 +31,6 @@ async fn main() -> std::io::Result<()> {
             writeln!(
                 buf,
                 "{}:{} [{}] - {}",
-                // retain only last part of path
                 record.file().unwrap_or_default().split('/').last().unwrap_or_default(),
                 record.line().unwrap_or(0),
                 style.value(level),

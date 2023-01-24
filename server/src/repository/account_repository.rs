@@ -1,3 +1,4 @@
+use crate::models::Account;
 use mongodb::{
     bson::{extjson::de::Error, oid::ObjectId, doc},
     results::InsertOneResult,
@@ -6,7 +7,6 @@ use mongodb::{
 use log;
 use dotenv::dotenv;
 use std::env;
-use crate::models::Account;
 
 pub struct AccountRepository {
     collection: Collection<Account>,
@@ -25,7 +25,7 @@ impl AccountRepository {
         let client_options = mongodb::options::ClientOptions::parse(uri).await.ok().expect("Failed to parse client options");
         let client = Client::with_options(client_options).ok().expect("Failed to initialize client");
         log::info!("Connected to MongoDB at {}", host);
-        
+
         let db = client.database("scrippt");
         let collection: Collection<Account> = db.collection("accounts");
 

@@ -1,4 +1,6 @@
-use crate::{repository::AccountRepository, models::Account};
+use crate::{
+    repository::account_repository::AccountRepository, 
+    models::Account};
 use actix_web::{
     web::{Data, Json, Path},
     get, post, delete, put,
