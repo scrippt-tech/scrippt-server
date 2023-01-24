@@ -48,7 +48,6 @@ async fn main() -> std::io::Result<()> {
             .service(index)
             .service(
                 web::scope("/account")
-                    .service(account_handlers::get_account)
                     .service(account_handlers::get_account_by_id)
                     .service(account_handlers::create_account)
                     .service(account_handlers::update_account)

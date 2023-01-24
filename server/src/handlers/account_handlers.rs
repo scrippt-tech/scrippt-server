@@ -7,11 +7,6 @@ use actix_web::{
     HttpResponse};
 use log;
 
-#[get("")]
-pub async fn get_account(db: Data<AccountRepository>) -> HttpResponse {
-    HttpResponse::Ok().body("Hello there!")
-}
-
 #[post("")]
 pub async fn create_account(db: Data<AccountRepository>, acc: Json<Account>) -> HttpResponse {
     log::info!("Creating account: {:?}", acc);
