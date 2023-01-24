@@ -34,6 +34,7 @@ pub async fn get_account_by_id(db: Data<AccountRepository>, path: Path<String>) 
     }
     log::info!("Getting account by id: {:?}", id);
     let acc = db.get_account(&id).await;
+    log::info!("Account: {:?}", acc);
     match acc {
         Ok(acc) => HttpResponse::Ok().json(acc),
         Err(e) => HttpResponse::InternalServerError().json(e.to_string()),

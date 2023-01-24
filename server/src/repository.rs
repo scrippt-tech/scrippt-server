@@ -14,7 +14,8 @@ impl AccountRepository {
 
     /// Initialize the repository with a MongoDB connection
     pub async fn new() -> Self {
-        let client = Client::with_uri_str("mongodb://localhost:27017").await.ok().expect("Failed to initialize client");
+        let client_options = mongodb::options::ClientOptions::parse("mongodb://localhost:27017").await.ok().expect("Failed to parse client options");
+        let client = Client::with_options(client_options).ok().expect("Failed to initialize client");
         log::info!("Connected to MongoDB at localhost:27017");
         let db = client.database("scrippt");
         let collection: Collection<Account> = db.collection("accounts");
