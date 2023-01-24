@@ -5,6 +5,13 @@ use actix_web::{
     HttpResponse};
 use mongodb::bson::oid::ObjectId;
 use log;
+use serde::{Serialize, Deserialize};
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Credentials {
+    email: String,
+    password: String,
+}
 
 #[post("")]
 pub async fn create_account(db: Data<AccountRepository>, acc: Json<Account>) -> HttpResponse {
@@ -13,7 +20,7 @@ pub async fn create_account(db: Data<AccountRepository>, acc: Json<Account>) -> 
     if exists.is_ok() {
         return HttpResponse::BadRequest().body("Account already exists");
     }
-    
+
     let data = Account {
         id: None,
         name: acc.name.to_owned(),
@@ -98,4 +105,22 @@ pub async fn delete_account(db: Data<AccountRepository>, path: Path<String>) -> 
         Ok(acc) => HttpResponse::Ok().json(acc),
         Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
     }
+}
+
+// Authentication Handlers
+#[post("/login")]
+pub async fn login_account(db: Data<AccountRepository>, cred: Json<Credentials>) -> HttpResponse {
+    log::info!("Logging in account: {:?}", cred);
+
+    let exists = db.get_account_by_email(&cred.email).await;
+    if exists.is_err() {
+        return HttpResponse::BadRequest().body("Account does not exist");
+    }
+
+    let account = exists.unwrap();
+    if account.password != cred.password {
+        return HttpResponse::BadRequest().body("Invalid password");
+    }
+
+    HttpResponse::Ok().json(account)
 }

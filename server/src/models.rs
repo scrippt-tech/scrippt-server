@@ -1,8 +1,5 @@
 use mongodb::bson::oid::ObjectId;
 use serde::{Serialize, Deserialize};
-// add date created and date updated
-
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Account {

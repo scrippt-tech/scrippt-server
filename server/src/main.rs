@@ -52,6 +52,7 @@ async fn main() -> std::io::Result<()> {
                     .service(account_handlers::create_account)
                     .service(account_handlers::update_account)
                     .service(account_handlers::delete_account)
+                    .service(account_handlers::login_account)
                 )
             .service(
                 web::scope("/profile")
