@@ -4,6 +4,8 @@ use mongodb::{
     Client, Collection,
 };
 use log;
+use dotenv::dotenv;
+use std::env;
 use crate::models::Account;
 
 pub struct AccountRepository {
@@ -14,9 +16,16 @@ impl AccountRepository {
 
     /// Initialize the repository with a MongoDB connection
     pub async fn new() -> Self {
-        let client_options = mongodb::options::ClientOptions::parse("mongodb://localhost:27017").await.ok().expect("Failed to parse client options");
+        dotenv().ok();
+        let user = env::var("MONGO_USER").expect("MONGO_USER must be set");
+        let psw = env::var("MONGO_PASSWORD").expect("MONGO_PASSWORD must be set");
+        let host = env::var("MONGO_HOST").expect("MONGO_HOST must be set");
+
+        let uri = format!("mongodb+srv://{}:{}@{}/?retryWrites=true&w=majority", user.as_str(), psw.as_str(), host.as_str());
+        let client_options = mongodb::options::ClientOptions::parse(uri).await.ok().expect("Failed to parse client options");
         let client = Client::with_options(client_options).ok().expect("Failed to initialize client");
-        log::info!("Connected to MongoDB at localhost:27017");
+        log::info!("Connected to MongoDB at {}", host);
+        
         let db = client.database("scrippt");
         let collection: Collection<Account> = db.collection("accounts");
 
@@ -28,7 +37,9 @@ impl AccountRepository {
     pub async fn get_account(&self, id: &str) -> Result<Account, Error> {
         let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
+        log::info!("Filter: {:?}", filter);
         let account_detail = self.collection.find_one(filter, None).await.ok().expect("Failed to execute find");
+        log::info!("Account: {:?}", account_detail);
         Ok(account_detail.unwrap())
     }
 

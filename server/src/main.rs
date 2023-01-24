@@ -16,7 +16,7 @@ async fn index() -> HttpResponse {
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "debug");
+    std::env::set_var("RUST_LOG", "info");
     // init logger with line and file info
     env_logger::builder()
         .format(|buf, record| {
