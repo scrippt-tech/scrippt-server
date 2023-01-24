@@ -1,22 +1,52 @@
-//use mongodb::Client;
-use actix_web::{App, web, get, HttpServer};
+mod models;
 mod account_handlers;
 mod profile_handlers;
+mod repository;
+
+use actix_web::{App, web, get, HttpServer, HttpResponse};
+use repository::AccountRepository;
+use env_logger::fmt::Color;
+use std::io::Write;
+use log;
 
 #[get("/")]
-async fn index() -> &'static str {
-    "Scrippt server"
+async fn index() -> HttpResponse {
+    HttpResponse::Ok().body("Scrippt Server")
 }
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "actix_web=info");
-    // let client_options = mongodb::options::ClientOptions::parse("mongodb://localhost:27017").unwrap();
-    // let client = mongodb::sync::Client::with_options(client_options).unwrap();
-    // let db = client.database("mydb");
+    std::env::set_var("RUST_LOG", "debug");
+    // init logger with line and file info
+    env_logger::builder()
+        .format(|buf, record| {
+            let level = record.level();
+            let mut style = buf.style();
+            match record.level() {
+                log::Level::Error => style.set_color(Color::Red),
+                log::Level::Warn => style.set_color(Color::Yellow),
+                log::Level::Info => style.set_color(Color::Green),
+                log::Level::Debug => style.set_color(Color::Blue),
+                log::Level::Trace => style.set_color(Color::Cyan),
+            };
+            writeln!(
+                buf,
+                "{}:{} [{}] - {}",
+                // retain only last part of path
+                record.file().unwrap_or_default().split('/').last().unwrap_or_default(),
+                record.line().unwrap_or(0),
+                style.value(level),
+                record.args()
+            )
+        })
+        .init();
+    let db = AccountRepository::new().await;
+    let db_data = web::Data::new(db);
+    log::info!("Server started on port 8000");
 
-    HttpServer::new(|| {
+    HttpServer::new(move || {
         App::new()
+            .app_data(db_data.clone())
             .service(index)
             .service(
                 web::scope("/account")
