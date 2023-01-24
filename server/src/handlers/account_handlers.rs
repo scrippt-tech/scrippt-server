@@ -1,8 +1,5 @@
 use crate::{repository::account_repository::AccountRepository, models::Account};
-use actix_web::{
-    web::{Data, Json, Path},
-    get, post, delete, put,
-    HttpResponse};
+use actix_web::{web::{Data, Json, Path}, get, post, delete, put, HttpResponse};
 use mongodb::bson::oid::ObjectId;
 use log;
 use serde::{Serialize, Deserialize};
