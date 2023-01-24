@@ -8,16 +8,23 @@ use log;
 
 #[post("")]
 pub async fn create_account(db: Data<AccountRepository>, acc: Json<Account>) -> HttpResponse {
-    log::info!("Creating account: {:?}", acc);
+    // check if account already exists
+    let exists = db.get_account_by_email(&acc.email).await;
+    if exists.is_ok() {
+        return HttpResponse::BadRequest().body("Account already exists");
+    }
+    
     let data = Account {
         id: None,
         name: acc.name.to_owned(),
         email: acc.email.to_owned(),
         password: acc.password.to_owned(),
+        date_created: Some(chrono::Utc::now().timestamp()),
+        date_updated: Some(chrono::Utc::now().timestamp()),
     };
 
     let acc = db.create_account(data).await;
-
+    log::info!("Created account: {:?}", acc);
     match acc {
         Ok(acc) => HttpResponse::Ok().json(acc),
         Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
@@ -54,6 +61,8 @@ pub async fn update_account(db: Data<AccountRepository>, path: Path<String>, acc
         name: acc.name.to_owned(),
         email: acc.email.to_owned(),
         password: acc.password.to_owned(),
+        date_created: acc.date_created.to_owned(),
+        date_updated: Some(chrono::Utc::now().timestamp()),
     };
 
     let update_result = db.update_account(&id, data).await;

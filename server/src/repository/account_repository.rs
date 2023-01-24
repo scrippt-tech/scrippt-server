@@ -37,10 +37,23 @@ impl AccountRepository {
     pub async fn get_account(&self, id: &str) -> Result<Account, Error> {
         let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
-        log::info!("Filter: {:?}", filter);
         let account_detail = self.collection.find_one(filter, None).await.ok().expect("Failed to execute find");
-        log::info!("Account: {:?}", account_detail);
         Ok(account_detail.unwrap())
+    }
+
+    /// Get account by email
+    /// email must be a valid email
+    /// if not found, return None
+    pub async fn get_account_by_email(&self, email: &str) -> Result<Account, Error> {
+        let filter = doc! {"email": email};
+        // try to find the account
+        let account_detail = self.collection.find_one(filter, None).await.ok().expect("Failed to execute find");
+        match account_detail {
+            Some(account) => Ok(account),
+            None => Err(Error::DeserializationError { message: (
+                format!("Account with email {} not found", email)
+            )})
+        }
     }
 
     /// Create a new account
@@ -51,6 +64,8 @@ impl AccountRepository {
             name: acc.name,
             email: acc.email,
             password: acc.password,
+            date_created: acc.date_created,
+            date_updated: acc.date_updated
         };
         let acc = self.collection.insert_one(new_doc, None).await.ok().expect("Failed to insert document");
         Ok(acc)
@@ -66,6 +81,8 @@ impl AccountRepository {
                 "name": acc.name,
                 "email": acc.email,
                 "password": acc.password,
+                "date_created": acc.date_created,
+                "date_updated": acc.date_updated
             }
         };
         let updated_doc = self.collection.update_one(filter, new_doc, None).await.ok().expect("Failed to update document");
