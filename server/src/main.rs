@@ -1,6 +1,7 @@
 mod models;
 mod handlers;
 mod repository;
+mod jwt;
 
 use actix_web::{App, web, get, HttpServer, HttpResponse};
 use handlers::{account_handlers, profile_handlers};
