@@ -1,14 +1,7 @@
 use jsonwebtoken::{encode, decode, Header, Algorithm, Validation, EncodingKey, DecodingKey};
-use serde::{Serialize, Deserialize};
+use crate::models::account::Claims;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Claims {
-    pub id: String,
-    pub email: String,
-    pub exp: usize,
-}
-
-pub fn encode_jwt(id: String, email: String, secret: String) -> String {
+pub fn encode_jwt(id: String, email: String, secret: &str) -> String {
     let my_claims = Claims {
         id,
         email,
@@ -24,7 +17,7 @@ pub fn encode_jwt(id: String, email: String, secret: String) -> String {
     token
 }
 
-pub fn decode_jwt(token: String, secret: String) -> Result<Claims, jsonwebtoken::errors::Error> {
+pub fn decode_jwt(token: String, secret: &str) -> Result<Claims, jsonwebtoken::errors::Error> {
     let decoded = decode::<Claims>(
         &token,
         &DecodingKey::from_secret(secret.as_ref()),
@@ -32,4 +25,48 @@ pub fn decode_jwt(token: String, secret: String) -> Result<Claims, jsonwebtoken:
     )?;
 
     Ok(decoded.claims)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use dotenv::dotenv;
+    use std::env;
+
+    // call a function to set up the environment
+    fn setup() {
+        dotenv().ok();
+    }
+
+
+    #[test]
+    fn test_encode_jwt() {
+        setup();
+        let secret: String = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
+        let my_claims = Claims {
+            id: "1234".to_string(),
+            email: "sant@gmail".to_string(),
+            exp: (chrono::Utc::now() + chrono::Duration::hours(24)).timestamp() as usize,
+        };
+
+        let correct_token = encode(
+            &Header::default(),
+            &my_claims,
+            &EncodingKey::from_secret(secret.as_ref())).unwrap();
+
+
+        let token = encode_jwt("1234".to_string(), "sant@gmail".to_string(), &secret);
+        
+        assert_eq!(token, correct_token);
+    }
+
+    #[test]
+    fn test_decode_jwt() {
+        setup();
+        let secret: String = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
+        let token = encode_jwt("1234".to_string(), "sant@gmail".to_string(), &secret);
+        let decoded = decode_jwt(token, &secret).unwrap();
+        assert_eq!(decoded.id, "1234");
+        assert_eq!(decoded.email, "sant@gmail");
+    }
 }

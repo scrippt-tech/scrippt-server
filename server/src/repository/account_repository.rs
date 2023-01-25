@@ -1,12 +1,11 @@
-use crate::models::Account;
+use crate::models::account::Account;
 use mongodb::{
     bson::{extjson::de::Error, oid::ObjectId, doc},
     results::{InsertOneResult, UpdateResult, DeleteResult},
     Client, Collection,
 };
-use log;
-use dotenv::dotenv;
 use std::env;
+use log;
 
 pub struct AccountRepository {
     collection: Collection<Account>,
@@ -16,7 +15,6 @@ impl AccountRepository {
 
     /// Initialize the repository with a MongoDB connection
     pub async fn new() -> Self {
-        dotenv().ok();
         let user = env::var("MONGO_USER").expect("MONGO_USER must be set");
         let psw = env::var("MONGO_PASSWORD").expect("MONGO_PASSWORD must be set");
         let host = env::var("MONGO_HOST").expect("MONGO_HOST must be set");
@@ -46,7 +44,6 @@ impl AccountRepository {
     /// if not found, return None
     pub async fn get_account_by_email(&self, email: &str) -> Result<Account, Error> {
         let filter = doc! {"email": email};
-        // try to find the account
         let account_detail = self.collection.find_one(filter, None).await.ok().expect("Failed to execute find");
         match account_detail {
             Some(account) => Ok(account),

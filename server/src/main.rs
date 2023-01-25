@@ -1,13 +1,16 @@
 mod models;
 mod handlers;
 mod repository;
+mod middleware;
 mod jwt;
+mod utils;
 
 use actix_web::{App, web, get, HttpServer, HttpResponse};
 use handlers::{account_handlers, profile_handlers};
 use repository::account_repository::AccountRepository;
 use env_logger::fmt::Color;
 use std::io::Write;
+use dotenv::dotenv;
 use log;
 
 #[get("/")]
@@ -18,6 +21,7 @@ async fn index() -> HttpResponse {
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "info");
+    dotenv().ok();
     env_logger::builder()
         .format(|buf, record| {
             let level = record.level();

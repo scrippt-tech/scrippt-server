@@ -1,42 +1,50 @@
-use crate::{repository::account_repository::AccountRepository, models::Account};
+use crate::{repository::account_repository::AccountRepository, models::account::{Account, AccountResponse, Credentials}};
+use crate::jwt::encode_jwt;
+use crate::middleware::auth::AuthorizationService;
+use crate::utils;
+use std::env;
 use actix_web::{web::{Data, Json, Path}, get, post, delete, put, HttpResponse};
 use mongodb::bson::oid::ObjectId;
 use log;
-use serde::{Serialize, Deserialize};
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Credentials {
-    email: String,
-    password: String,
-}
 
 #[post("")]
 pub async fn create_account(db: Data<AccountRepository>, acc: Json<Account>) -> HttpResponse {
-    // check if account already exists
     let exists = db.get_account_by_email(&acc.email).await;
     if exists.is_ok() {
         return HttpResponse::BadRequest().body("Account already exists");
     }
 
+    let hash_password = utils::generate_hash(&acc.password);
+
     let data = Account {
         id: None,
         name: acc.name.to_owned(),
         email: acc.email.to_owned(),
-        password: acc.password.to_owned(),
+        password: hash_password.to_owned(),
         date_created: Some(chrono::Utc::now().timestamp()),
         date_updated: Some(chrono::Utc::now().timestamp()),
     };
 
-    let acc = db.create_account(data).await;
-    log::info!("Created account: {:?}", acc);
-    match acc {
-        Ok(acc) => HttpResponse::Ok().json(acc),
+    let result = db.create_account(data).await;
+    log::info!("Created account: {:?}", result);
+
+    let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
+    let id = result.as_ref().unwrap().inserted_id.as_object_id().unwrap().to_hex();
+    let token = encode_jwt(id.to_owned(), acc.email.to_owned(), &secret);
+
+    let response = AccountResponse {
+        id,
+        token,
+    };
+
+    match result {
+        Ok(_result) => HttpResponse::Ok().json(response),
         Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
     }
 }
 
 #[get("/{id}")]
-pub async fn get_account_by_id(db: Data<AccountRepository>, path: Path<String>) -> HttpResponse {
+pub async fn get_account_by_id(db: Data<AccountRepository>, path: Path<String>, _auth: AuthorizationService) -> HttpResponse {
     log::info!("Getting account by id: {:?}", path);
     let id = path.into_inner();
     if id.is_empty() {
@@ -53,7 +61,7 @@ pub async fn get_account_by_id(db: Data<AccountRepository>, path: Path<String>) 
 
 
 #[put("/{id}")]
-pub async fn update_account(db: Data<AccountRepository>, path: Path<String>, acc: Json<Account>) -> HttpResponse {
+pub async fn update_account(db: Data<AccountRepository>, path: Path<String>, acc: Json<Account>, _auth: AuthorizationService) -> HttpResponse {
     log::info!("Updating account by id: {:?}", path);
     let id = path.into_inner();
     if id.is_empty() {
@@ -88,7 +96,7 @@ pub async fn update_account(db: Data<AccountRepository>, path: Path<String>, acc
 }
 
 #[delete("/{id}")]
-pub async fn delete_account(db: Data<AccountRepository>, path: Path<String>) -> HttpResponse {
+pub async fn delete_account(db: Data<AccountRepository>, path: Path<String>, _auth: AuthorizationService) -> HttpResponse {
     log::info!("Deleting account by id: {:?}", path);
 
     let id = path.into_inner();
@@ -115,9 +123,18 @@ pub async fn login_account(db: Data<AccountRepository>, cred: Json<Credentials>)
     }
 
     let account = exists.unwrap();
-    if account.password != cred.password {
+    if utils::verify_hash(&cred.password, &account.password) == false {
         return HttpResponse::BadRequest().body("Invalid password");
     }
 
-    HttpResponse::Ok().json(account)
+    let id = account.id.unwrap().to_hex();
+    let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
+    let token = encode_jwt(id.to_owned(), cred.email.to_owned(), &secret);
+
+    let response = AccountResponse {
+        id,
+        token,
+    };
+
+    HttpResponse::Ok().json(response)
 }
