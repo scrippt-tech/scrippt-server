@@ -7,7 +7,7 @@ use actix_web::{web::{Data, Json, Path}, get, post, delete, put, HttpResponse};
 use mongodb::bson::oid::ObjectId;
 use log;
 
-#[post("")]
+#[post("/create")]
 pub async fn create_account(db: Data<AccountRepository>, acc: Json<Account>) -> HttpResponse {
     let exists = db.get_account_by_email(&acc.email).await;
     if exists.is_ok() {
