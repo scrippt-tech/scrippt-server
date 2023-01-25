@@ -25,15 +25,10 @@ pub fn encode_jwt(id: String, email: String, secret: String) -> String {
 }
 
 pub fn decode_jwt(token: String, secret: String) -> Result<Claims, jsonwebtoken::errors::Error> {
-    let validation = Validation {
-        algorithms: vec![Algorithm::HS256],
-        ..Validation::default()
-    };
-
     let decoded = decode::<Claims>(
         &token,
         &DecodingKey::from_secret(secret.as_ref()),
-        &validation,
+        &Validation::new(Algorithm::HS256),
     )?;
 
     Ok(decoded.claims)
