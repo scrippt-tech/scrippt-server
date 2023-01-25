@@ -1,7 +1,7 @@
 use crate::{repository::account_repository::AccountRepository, models::account::{Account, AccountResponse, Credentials}};
-use crate::jwt::encode_jwt;
-use crate::middleware::auth::AuthorizationService;
-use crate::utils;
+use crate::auth::jwt::encode_jwt;
+use crate::auth::middleware::AuthorizationService;
+use crate::auth::utils;
 use std::env;
 use actix_web::{web::{Data, Json, Path}, get, post, delete, put, HttpResponse};
 use mongodb::bson::oid::ObjectId;
@@ -45,6 +45,7 @@ pub async fn create_account(db: Data<AccountRepository>, acc: Json<Account>) -> 
 
 #[get("/{id}")]
 pub async fn get_account_by_id(db: Data<AccountRepository>, path: Path<String>, _auth: AuthorizationService) -> HttpResponse {
+    // TODO: Don't send password back to client
     log::info!("Getting account by id: {:?}", path);
     let id = path.into_inner();
     if id.is_empty() {

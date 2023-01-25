@@ -1,4 +1,4 @@
-use crate::jwt::decode_jwt;
+use crate::auth::jwt::decode_jwt;
 use actix_web::{dev, error::ErrorUnauthorized, Error, FromRequest, HttpRequest};
 use futures::future::{err, ok, Ready};
 use std::env;
@@ -10,6 +10,7 @@ impl FromRequest for AuthorizationService {
     type Future = Ready<Result<Self, Self::Error>>;
 
     fn from_request(req: &HttpRequest, _payload: &mut dev::Payload) -> Self::Future {
+        // TODO: check if token id matches user id
         let auth = req.headers().get("Authorization");
         match auth {
             Some(_) => {
