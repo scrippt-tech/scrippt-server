@@ -1,6 +1,6 @@
 use crate::{repository::account_repository::AccountRepository, models::account::{Account, AccountResponse, Credentials}};
 use crate::auth::jwt::encode_jwt;
-use crate::auth::middleware::AuthorizationService;
+use crate::auth::user_auth::AuthorizationService;
 use crate::auth::utils;
 use std::env;
 use actix_web::{web::{Data, Json, Path}, get, post, delete, put, HttpResponse};

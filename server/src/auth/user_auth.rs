@@ -3,6 +3,10 @@ use actix_web::{dev, error::ErrorUnauthorized, Error, FromRequest, HttpRequest};
 use futures::future::{err, ok, Ready};
 use std::env;
 
+/// Authorization service extractor
+/// Requires:
+///     Authorization header with Bearer token
+///     id in url
 pub struct AuthorizationService;
 
 impl FromRequest for AuthorizationService {
@@ -10,7 +14,8 @@ impl FromRequest for AuthorizationService {
     type Future = Ready<Result<Self, Self::Error>>;
 
     fn from_request(req: &HttpRequest, _payload: &mut dev::Payload) -> Self::Future {
-        // TODO: check if token id matches user id
+        let id = req.match_info().get("id").unwrap();
+        log::info!("id: {:?}", id);
         let auth = req.headers().get("Authorization");
         match auth {
             Some(_) => {
@@ -18,11 +23,14 @@ impl FromRequest for AuthorizationService {
                 let token = split[1].trim();
                 let key = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
                 match decode_jwt(token.to_string(), &key) {
-                    Ok(_token) => ok(AuthorizationService),
+                    Ok(claims) => match claims.sub == id {
+                        true => ok(AuthorizationService),
+                        false => err(ErrorUnauthorized("invalid token")),
+                    },
                     Err(_e) => err(ErrorUnauthorized("invalid token")),
                 }
             }
-            None => err(ErrorUnauthorized("blocked")),
+            None => err(ErrorUnauthorized("unauthorized")),
         }
     }
 }

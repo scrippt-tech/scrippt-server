@@ -26,7 +26,7 @@ pub struct Credentials {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
-    pub id: String,
+    pub sub: String,
     pub email: String,
     pub exp: usize,
 }
