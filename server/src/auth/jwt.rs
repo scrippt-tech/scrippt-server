@@ -40,6 +40,7 @@ mod tests {
 
 
     #[test]
+    #[ignore = "This test requires a JWT_SECRET to be set"]
     fn test_encode_jwt() {
         setup();
         let secret: String = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
@@ -61,6 +62,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "This test requires a JWT_SECRET to be set"]
     fn test_decode_jwt() {
         setup();
         let secret: String = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
