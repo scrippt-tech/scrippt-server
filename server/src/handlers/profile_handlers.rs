@@ -1,7 +1,7 @@
 use actix_web::{web::{Data, Json, Path}, get, post, delete, put, HttpResponse};
 
 use crate::repository::db::DatabaseRepository;
-use crate::models::profile::{Profile};
+use crate::models::profile::Profile;
 use crate::auth::user_auth::AuthorizationService;
 
 #[post("/{id}")]
