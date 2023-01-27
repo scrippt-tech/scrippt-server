@@ -1,11 +1,11 @@
-use crate::models::account::Account;
-use crate::repository::db::DatabaseRepository;
 use mongodb::{
     bson::{extjson::de::Error, doc},
     results::{InsertOneResult, UpdateResult, DeleteResult},
     bson::oid::ObjectId,
 };
 
+use crate::models::account::Account;
+use crate::repository::db::DatabaseRepository;
 
 impl DatabaseRepository {
 

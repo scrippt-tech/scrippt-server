@@ -1,9 +1,10 @@
-use crate::models::profile::Profile;
-use crate::repository::db::DatabaseRepository;
 use mongodb::{
     bson::{extjson::de::Error, doc},
     results::{InsertOneResult, UpdateResult, DeleteResult},
 };
+
+use crate::models::profile::Profile;
+use crate::repository::db::DatabaseRepository;
 
 impl DatabaseRepository {
 
