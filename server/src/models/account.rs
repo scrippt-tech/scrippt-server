@@ -16,7 +16,9 @@ pub struct Account {
 pub struct AccountResponse {
     pub id: String,
     pub token: String,
-}
+} // change this to auth response
+
+// add account response
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Credentials {

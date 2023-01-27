@@ -1,11 +1,12 @@
+use actix_web::{web::{Data, Json, Path}, get, post, delete, put, HttpResponse};
+use mongodb::bson::oid::ObjectId;
+use std::env;
+use log;
+
 use crate::{repository::account_repository::AccountRepository, models::account::{Account, AccountResponse, Credentials}};
 use crate::auth::jwt::encode_jwt;
 use crate::auth::user_auth::AuthorizationService;
 use crate::auth::utils;
-use std::env;
-use actix_web::{web::{Data, Json, Path}, get, post, delete, put, HttpResponse};
-use mongodb::bson::oid::ObjectId;
-use log;
 
 #[post("/create")]
 pub async fn create_account(db: Data<AccountRepository>, acc: Json<Account>) -> HttpResponse {

@@ -71,7 +71,6 @@ impl AccountRepository {
     pub async fn update_account(&self, id: &str, acc: Account) -> Result<UpdateResult, Error> {
         let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
-        log::info!("Filter: {:?}", filter);
         let new_doc = doc! {
             "$set": {
                 "id": acc.id,
@@ -89,9 +88,7 @@ impl AccountRepository {
     pub async fn delete_account(&self, id: &str) -> Result<DeleteResult, Error> {
         let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
-        log::info!("Filter: {:?}", filter);
         let account_detail = self.collection.delete_one(filter, None).await.ok().expect("Failed to execute find");
-        log::info!("Account: {:?}", account_detail);
         Ok(account_detail)
     }
 

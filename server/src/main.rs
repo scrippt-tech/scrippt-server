@@ -6,6 +6,7 @@ mod auth;
 use actix_web::{App, web, get, HttpServer, HttpResponse};
 use handlers::{account_handlers, profile_handlers};
 use repository::account_repository::AccountRepository;
+use repository::profile_repository::ProfileRepository;
 use env_logger::fmt::Color;
 use std::io::Write;
 use dotenv::dotenv;
@@ -41,16 +42,20 @@ async fn main() -> std::io::Result<()> {
             )
         })
         .init();
-    let db = AccountRepository::new().await;
-    let db_data = web::Data::new(db);
+
+    // TODO: Join two repositories into one
+    let acc_db = AccountRepository::new().await;
+    let profile_db = ProfileRepository::new().await;
+    let acc_data = web::Data::new(acc_db);
+    let profile_data = web::Data::new(profile_db);
     log::info!("Server started on port 8000");
 
     HttpServer::new(move || {
         App::new()
-            .app_data(db_data.clone())
-            .service(index)
-            .service(
-                web::scope("/account")
+        .service(index)
+        .service(
+            web::scope("/account")
+                    .app_data(acc_data.clone())
                     .service(account_handlers::get_account_by_id)
                     .service(account_handlers::create_account)
                     .service(account_handlers::update_account)
@@ -59,6 +64,7 @@ async fn main() -> std::io::Result<()> {
                 )
             .service(
                 web::scope("/profile")
+                    .app_data(profile_data.clone())
                     .service(profile_handlers::create_profile)
                     .service(profile_handlers::get_profile_by_id)
                     .service(profile_handlers::update_profile)

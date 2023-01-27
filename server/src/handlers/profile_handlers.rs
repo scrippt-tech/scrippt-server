@@ -1,21 +1,21 @@
-use actix_web::{get, post, delete, put, Responder};
+use actix_web::{web::{Data, Json, Path}, get, post, delete, put, HttpResponse};
 
-#[post("")]
-pub async fn create_profile() -> impl Responder {
-    "Create profile"
+#[post("/create")]
+pub async fn create_profile() -> HttpResponse {
+    HttpResponse::Ok().body("Create profile")
 }
 
 #[get("/{id}")]
-pub async fn get_profile_by_id() -> impl Responder {
-    "Get profile by id"
+pub async fn get_profile_by_id() -> HttpResponse {
+    HttpResponse::Ok().body("Get profile by id")
 }
 
 #[put("/{id}")]
-pub async fn update_profile() -> impl Responder {
-    "Update profile"
+pub async fn update_profile() -> HttpResponse {
+    HttpResponse::Ok().body("Update profile")
 }
 
 #[delete("/{id}")]
-pub async fn delete_profile() -> impl Responder {
-    "Delete profile"
+pub async fn delete_profile() -> HttpResponse {
+    HttpResponse::Ok().body("Delete profile")
 }
