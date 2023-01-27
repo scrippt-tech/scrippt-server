@@ -21,6 +21,7 @@ impl DatabaseRepository {
         let new_doc = Profile {
             account_id: profile.account_id,
             profile: profile.profile,
+            date_created: profile.date_created,
             date_updated: profile.date_updated,
         };
         let result = self.profile_collection.insert_one(new_doc, None).await.ok().expect("Failed to insert document");

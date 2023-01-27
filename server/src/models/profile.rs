@@ -8,10 +8,12 @@ use serde_json;
 pub struct Profile {
     pub account_id: String,
     pub profile: ProfileInfo,
+    pub date_created: Option<i64>,
     pub date_updated: Option<i64>,
 }
 
 /// Profile models
+#[derive(Clone)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProfileInfo {
     pub education: Vec<Education>,
@@ -19,6 +21,7 @@ pub struct ProfileInfo {
     pub skills: Vec<Skill>,
 }
 
+#[derive(Clone)]
 #[derive(Debug, Serialize, Deserialize)]
 pub enum ExperienceType {
     Work,
@@ -27,6 +30,7 @@ pub enum ExperienceType {
     Other,
 }
 
+#[derive(Clone)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Experience {
     pub name: String,
@@ -39,6 +43,7 @@ pub struct Experience {
     pub description: String,
 }
 
+#[derive(Clone)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Education {
     pub school: String,
@@ -50,6 +55,7 @@ pub struct Education {
     pub description: String,
 }
 
+#[derive(Clone)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Skill {
     pub skill: String,
