@@ -3,13 +3,13 @@ use mongodb::bson::oid::ObjectId;
 use std::env;
 use log;
 
-use crate::{repository::account_repository::AccountRepository, models::account::{Account, AccountResponse, Credentials}};
+use crate::{repository::db::DatabaseRepository, models::account::{Account, AccountResponse, Credentials}};
 use crate::auth::jwt::encode_jwt;
 use crate::auth::user_auth::AuthorizationService;
 use crate::auth::utils;
 
 #[post("/create")]
-pub async fn create_account(db: Data<AccountRepository>, acc: Json<Account>) -> HttpResponse {
+pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<Account>) -> HttpResponse {
     let exists = db.get_account_by_email(&acc.email).await;
     if exists.is_ok() {
         return HttpResponse::BadRequest().body("Account already exists");
@@ -45,7 +45,7 @@ pub async fn create_account(db: Data<AccountRepository>, acc: Json<Account>) -> 
 }
 
 #[get("/{id}")]
-pub async fn get_account_by_id(db: Data<AccountRepository>, path: Path<String>, _auth: AuthorizationService) -> HttpResponse {
+pub async fn get_account_by_id(db: Data<DatabaseRepository>, path: Path<String>, _auth: AuthorizationService) -> HttpResponse {
     // TODO: Don't send password back to client
     log::info!("Getting account by id: {:?}", path);
     let id = path.into_inner();
@@ -63,7 +63,7 @@ pub async fn get_account_by_id(db: Data<AccountRepository>, path: Path<String>, 
 
 
 #[put("/{id}")]
-pub async fn update_account(db: Data<AccountRepository>, path: Path<String>, acc: Json<Account>, _auth: AuthorizationService) -> HttpResponse {
+pub async fn update_account(db: Data<DatabaseRepository>, path: Path<String>, acc: Json<Account>, _auth: AuthorizationService) -> HttpResponse {
     log::info!("Updating account by id: {:?}", path);
     let id = path.into_inner();
     if id.is_empty() {
@@ -98,7 +98,7 @@ pub async fn update_account(db: Data<AccountRepository>, path: Path<String>, acc
 }
 
 #[delete("/{id}")]
-pub async fn delete_account(db: Data<AccountRepository>, path: Path<String>, _auth: AuthorizationService) -> HttpResponse {
+pub async fn delete_account(db: Data<DatabaseRepository>, path: Path<String>, _auth: AuthorizationService) -> HttpResponse {
     log::info!("Deleting account by id: {:?}", path);
 
     let id = path.into_inner();
@@ -116,7 +116,7 @@ pub async fn delete_account(db: Data<AccountRepository>, path: Path<String>, _au
 
 // Authentication Handlers
 #[post("/login")]
-pub async fn login_account(db: Data<AccountRepository>, cred: Json<Credentials>) -> HttpResponse {
+pub async fn login_account(db: Data<DatabaseRepository>, cred: Json<Credentials>) -> HttpResponse {
     log::info!("Logging in account: {:?}", cred);
 
     let exists = db.get_account_by_email(&cred.email).await;

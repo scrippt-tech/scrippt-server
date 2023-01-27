@@ -1,50 +1,24 @@
 use crate::models::account::Account;
+use crate::repository::db::DatabaseRepository;
 use mongodb::{
-    bson::{extjson::de::Error, oid::ObjectId, doc},
+    bson::{extjson::de::Error, doc},
     results::{InsertOneResult, UpdateResult, DeleteResult},
-    Client, Collection,
+    bson::oid::ObjectId,
 };
-use std::env;
-use log;
 
-pub struct AccountRepository {
-    collection: Collection<Account>,
-}
 
-impl AccountRepository {
+impl DatabaseRepository {
 
-    /// Initialize the repository with a MongoDB connection
-    pub async fn new() -> Self {
-        let user = env::var("MONGO_USER").expect("MONGO_USER must be set");
-        let psw = env::var("MONGO_PASSWORD").expect("MONGO_PASSWORD must be set");
-        let host = env::var("MONGO_HOST").expect("MONGO_HOST must be set");
-
-        let uri = format!("mongodb+srv://{}:{}@{}/?retryWrites=true&w=majority", user.as_str(), psw.as_str(), host.as_str());
-        let client_options = mongodb::options::ClientOptions::parse(uri).await.ok().expect("Failed to parse client options");
-        let client = Client::with_options(client_options).ok().expect("Failed to initialize client");
-        log::info!("Connected to MongoDB at {}", host);
-
-        let db = client.database("scrippt");
-        let collection: Collection<Account> = db.collection("accounts");
-
-        AccountRepository { collection }
-    }
-
-    /// Get a single account by id
-    /// id must be a valid ObjectId
     pub async fn get_account(&self, id: &str) -> Result<Account, Error> {
         let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
-        let account_detail = self.collection.find_one(filter, None).await.ok().expect("Failed to execute find");
+        let account_detail = self.account_collection.find_one(filter, None).await.ok().expect("Failed to execute find");
         Ok(account_detail.unwrap())
     }
 
-    /// Get account by email
-    /// email must be a valid email
-    /// if not found, return None
     pub async fn get_account_by_email(&self, email: &str) -> Result<Account, Error> {
         let filter = doc! {"email": email};
-        let account_detail = self.collection.find_one(filter, None).await.ok().expect("Failed to execute find");
+        let account_detail = self.account_collection.find_one(filter, None).await.ok().expect("Failed to execute find");
         match account_detail {
             Some(account) => Ok(account),
             None => Err(Error::DeserializationError { message: (
@@ -53,8 +27,6 @@ impl AccountRepository {
         }
     }
 
-    /// Create a new account
-    /// Account must have a name, email, and password
     pub async fn create_account(&self, acc: Account) -> Result<InsertOneResult, Error> {
         let new_doc = Account {
             id: None,
@@ -64,7 +36,7 @@ impl AccountRepository {
             date_created: acc.date_created,
             date_updated: acc.date_updated
         };
-        let acc = self.collection.insert_one(new_doc, None).await.ok().expect("Failed to insert document");
+        let acc = self.account_collection.insert_one(new_doc, None).await.ok().expect("Failed to insert document");
         Ok(acc)
     }
 
@@ -81,14 +53,14 @@ impl AccountRepository {
                 "date_updated": acc.date_updated
             }
         };
-        let updated_doc = self.collection.update_one(filter, new_doc, None).await.ok().expect("Failed to update document");
+        let updated_doc = self.account_collection.update_one(filter, new_doc, None).await.ok().expect("Failed to update document");
         Ok(updated_doc)
     }
 
     pub async fn delete_account(&self, id: &str) -> Result<DeleteResult, Error> {
         let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
-        let account_detail = self.collection.delete_one(filter, None).await.ok().expect("Failed to execute find");
+        let account_detail = self.account_collection.delete_one(filter, None).await.ok().expect("Failed to execute find");
         Ok(account_detail)
     }
 
