@@ -58,13 +58,13 @@ async fn main() -> std::io::Result<()> {
                     .service(account_handlers::delete_account)
                     .service(account_handlers::login_account)
                 )
-            .service(
-                web::scope("/profile")
-                    .service(profile_handlers::create_profile)
-                    .service(profile_handlers::get_profile_by_id)
-                    .service(profile_handlers::update_profile)
-                    .service(profile_handlers::delete_profile)
-            )
+        .service(
+            web::scope("/profile")
+                .service(profile_handlers::create_profile)
+                .service(profile_handlers::get_profile_by_id)
+                .service(profile_handlers::update_profile)
+                .service(profile_handlers::delete_profile)
+        )
     })
     .bind("127.0.0.1:8000")?
     .run()
