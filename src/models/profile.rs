@@ -1,17 +1,6 @@
 use serde::{Serialize, Deserialize};
 use mongodb::bson::{self, Bson};
 use bson::to_bson;
-use serde_json;
-
-/// Database models
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Profile {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub account_id: Option<String>,
-    pub profile: ProfileInfo,
-    pub date_created: Option<i64>,
-    pub date_updated: Option<i64>,
-}
 
 /// Profile models
 #[derive(Clone)]
@@ -61,19 +50,6 @@ pub struct Education {
 pub struct Skill {
     pub skill: String,
     pub level: String,
-}
-
-
-/// Request - Response models
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ProfileResponse {
-    pub account_id: String,
-    pub profile: serde_json::Value,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ProfileUpdate {
-    pub profile: serde_json::Value,
 }
 
 /// Implementations
