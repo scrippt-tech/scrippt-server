@@ -6,7 +6,8 @@ use serde_json;
 /// Database models
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Profile {
-    pub account_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_id: Option<String>,
     pub profile: ProfileInfo,
     pub date_created: Option<i64>,
     pub date_updated: Option<i64>,

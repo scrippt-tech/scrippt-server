@@ -13,7 +13,7 @@ pub async fn create_profile(db: Data<DatabaseRepository>, path: Path<String>, pr
     }
 
     let data = Profile {
-        account_id: id,
+        account_id: Some(id),
         profile: profile.profile.to_owned(),
         date_created: Some(chrono::Utc::now().timestamp()),
         date_updated: Some(chrono::Utc::now().timestamp()),
@@ -51,7 +51,7 @@ pub async fn update_profile(db: Data<DatabaseRepository>, path: Path<String>, pr
     }
 
     let data = Profile {
-        account_id: id.to_owned(),
+        account_id: Some(id.to_owned()),
         profile: profile.profile.to_owned(),
         date_created: profile.date_created.to_owned(),
         date_updated: Some(chrono::Utc::now().timestamp()),

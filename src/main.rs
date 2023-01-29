@@ -3,7 +3,7 @@ mod handlers;
 mod repository;
 mod auth;
 
-use actix_web::{App, web, get, HttpServer, HttpResponse};
+use actix_web::{App, web, get, Result, HttpServer, HttpRequest, HttpResponse, http};
 use handlers::{account_handlers, profile_handlers};
 use repository::db::DatabaseRepository;
 use env_logger::fmt::Color;
@@ -11,9 +11,12 @@ use std::io::Write;
 use dotenv::dotenv;
 use log;
 
+// return index.html for from ./static folder for route /
 #[get("/")]
-async fn index() -> HttpResponse {
-    HttpResponse::Ok().body("Scrippt Server")
+async fn index(_req: HttpRequest) -> Result<HttpResponse> {
+    Ok(HttpResponse::build(http::StatusCode::OK)
+        .content_type("text/html; charset=utf-8")
+        .body(include_str!("../static/html/index.html")))
 }
 
 #[actix_rt::main]

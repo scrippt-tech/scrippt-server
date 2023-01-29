@@ -15,7 +15,6 @@ impl FromRequest for AuthorizationService {
 
     fn from_request(req: &HttpRequest, _payload: &mut dev::Payload) -> Self::Future {
         let id = req.match_info().get("id").unwrap();
-        log::info!("id: {:?}", id);
         let auth = req.headers().get("Authorization");
         match auth {
             Some(_) => {
