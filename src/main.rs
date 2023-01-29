@@ -2,27 +2,23 @@ mod models;
 mod handlers;
 mod repository;
 mod auth;
+mod routes;
 
-use actix_web::{App, web, get, Result, HttpServer, HttpRequest, HttpResponse, http};
+use actix_web::{App, web, HttpServer};
 use handlers::{account_handlers, profile_handlers};
 use repository::db::DatabaseRepository;
+use handlebars::Handlebars;
 use env_logger::fmt::Color;
 use std::io::Write;
 use dotenv::dotenv;
 use log;
 
-// return index.html for from ./static folder for route /
-#[get("/")]
-async fn index(_req: HttpRequest) -> Result<HttpResponse> {
-    Ok(HttpResponse::build(http::StatusCode::OK)
-        .content_type("text/html; charset=utf-8")
-        .body(include_str!("../static/html/index.html")))
-}
-
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "info");
     dotenv().ok();
+
+    // Logger
+    std::env::set_var("RUST_LOG", "info");
     env_logger::builder()
         .format(|buf, record| {
             let level = record.level();
@@ -45,14 +41,24 @@ async fn main() -> std::io::Result<()> {
         })
         .init();
 
+    // Database
     let db = DatabaseRepository::new().await;
     let data = web::Data::new(db);
+
+    // Handlebars
+    let mut handlebars = Handlebars::new();
+    handlebars
+        .register_templates_directory(".html", "./static/templates")
+        .unwrap();
+    let handlebars_ref = web::Data::new(handlebars);
+
     log::info!("Server started on port 8000");
 
     HttpServer::new(move || {
         App::new()
         .app_data(data.clone())
-        .service(index)
+        .app_data(handlebars_ref.clone())
+        .service(routes::index)
         .service(
             web::scope("/account")
                     .service(account_handlers::get_account_by_id)

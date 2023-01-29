@@ -23,6 +23,7 @@ env_logger = "0.10.0"
 jsonwebtoken = "8.0.0"
 rust-argon2 = "1.0"
 rand = "0.8.3"
+handlebars = { version = "4.3.6", features = ["dir_source"] }
 
 [dependencies.mongodb]
 version = "2.2.0"
