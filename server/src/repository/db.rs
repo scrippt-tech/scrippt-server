@@ -9,6 +9,7 @@ use mongodb::{
 
 use crate::models::{user::{User, UserUpdate}};
 use crate::models::profile::ProfileInfo;
+use crate::models::document::DocumentInfo;
 
 pub struct DatabaseRepository {
     pub user_collection: Collection<User>,
@@ -202,6 +203,33 @@ impl DatabaseRepository {
             match result.modified_count {
                 1 => Ok(result),
                 _ => Err(Error::DeserializationError { message: "Failed to update profile".to_string() })
+            }
+        }
+
+        pub async fn add_document(&self, id: &str, document: DocumentInfo, date: i64) -> Result<UpdateResult, Error> {
+            let filter = doc! {"_id": id};
+            let update = doc! {
+                "$push": {
+                    "documents": {
+                        "title": document.title.to_owned(),
+                        "prompt": document.prompt.to_owned(),
+                        "content": document.content.to_owned(),
+                        "rating": Some(document.rating),
+                    }
+                },
+                "$set": {
+                    "date_updated": date,
+                }
+            };
+            let result = self.user_collection
+                                        .update_one(filter, update, None)
+                                        .await
+                                        .ok()
+                                        .expect("Failed to update document");
+            log::info!("Added {} document for account {}", result.modified_count, id);
+            match result.modified_count {
+                1 => Ok(result),
+                _ => Err(Error::DeserializationError { message: "Failed to add document".to_string() })
             }
         }
 

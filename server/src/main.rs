@@ -6,7 +6,7 @@ mod auth;
 
 use actix_web::{App, web, HttpServer};
 use actix_files as fs;
-use handlers::{account_handlers, profile_handlers};
+use handlers::{account_handlers, profile_handlers, document_handlers};
 use website::routes;
 use repository::db::DatabaseRepository;
 use handlebars::Handlebars;
@@ -63,7 +63,6 @@ async fn main() -> std::io::Result<()> {
         App::new()
         .app_data(data.clone())
         .app_data(handlebars_ref.clone())
-        // serve css files from static folder
         .service(fs::Files::new("/public/css", "./public").show_files_listing())
         .service(
             web::scope("/")
@@ -80,6 +79,10 @@ async fn main() -> std::io::Result<()> {
         .service(
             web::scope("/api/profile")
                 .service(profile_handlers::profile)
+        )
+        .service(
+            web::scope("/api/document")
+                .service(document_handlers::document)
         )
     })
     .bind("127.0.0.1:8000")?

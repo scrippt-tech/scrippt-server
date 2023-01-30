@@ -1,8 +1,19 @@
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Document {
+pub struct DocumentInfo {
     pub title: String,
     pub prompt: String,
-    pub rating: Option<i8>,
+    pub content: String,
+    pub rating: Option<i32>,
+    pub date_created: Option<i64>,
+    pub date_updated: Option<i64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DocumentRequest {
+    pub title: String,
+    pub prompt: String,
+    pub content: String,
+    pub op: String,
 }
