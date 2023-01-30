@@ -52,10 +52,10 @@ async fn main() -> std::io::Result<()> {
     // Handlebars
     let mut handlebars = Handlebars::new();
     handlebars
-        .register_templates_directory(".hbs", "./static/templates")
+        .register_templates_directory(".hbs", "./server/templates")
         .unwrap();
     handlebars
-        .register_partial("navbar", include_str!("../static/templates/navbar.hbs"))
+        .register_partial("navbar", include_str!("../templates/navbar.hbs"))
         .unwrap();
     let handlebars_ref = web::Data::new(handlebars);
 
@@ -64,7 +64,7 @@ async fn main() -> std::io::Result<()> {
         .app_data(data.clone())
         .app_data(handlebars_ref.clone())
         // serve css files from static folder
-        .service(fs::Files::new("/static/css", "./static/css").show_files_listing())
+        .service(fs::Files::new("/public/css", "./public").show_files_listing())
         .service(
             web::scope("/")
                 .service(routes::index)
