@@ -1,21 +1,10 @@
 use serde::{Serialize, Deserialize};
 use mongodb::bson::{self, Bson};
 use bson::to_bson;
-use serde_json;
-
-/// Database models
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Profile {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub account_id: Option<String>,
-    pub profile: ProfileInfo,
-    pub date_created: Option<i64>,
-    pub date_updated: Option<i64>,
-}
 
 /// Profile models
 #[derive(Clone)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct ProfileInfo {
     pub education: Vec<Education>,
     pub experience: Vec<Experience>,
@@ -35,7 +24,7 @@ pub enum ExperienceType {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Experience {
     pub name: String,
-    pub type_: ExperienceType,
+    pub type_: i32,
     pub title: String,
     pub location: String,
     pub from: String,
@@ -63,22 +52,27 @@ pub struct Skill {
     pub level: String,
 }
 
-
-/// Request - Response models
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ProfileResponse {
-    pub account_id: String,
-    pub profile: serde_json::Value,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ProfileUpdate {
-    pub profile: serde_json::Value,
-}
-
 /// Implementations
 impl std::convert::From<ProfileInfo> for Bson {
     fn from(profile: ProfileInfo) -> Self {
         Bson::Document(to_bson(&profile).unwrap().as_document().unwrap().clone())
+    }
+}
+
+impl std::convert::From<Education> for Bson {
+    fn from(education: Education) -> Self {
+        Bson::Document(to_bson(&education).unwrap().as_document().unwrap().clone())
+    }
+}
+
+impl std::convert::From<Experience> for Bson {
+    fn from(experience: Experience) -> Self {
+        Bson::Document(to_bson(&experience).unwrap().as_document().unwrap().clone())
+    }
+}
+
+impl std::convert::From<Skill> for Bson {
+    fn from(skill: Skill) -> Self {
+        Bson::Document(to_bson(&skill).unwrap().as_document().unwrap().clone())
     }
 }

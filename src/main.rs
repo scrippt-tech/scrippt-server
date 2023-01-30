@@ -60,7 +60,7 @@ async fn main() -> std::io::Result<()> {
         .app_data(handlebars_ref.clone())
         .service(routes::index)
         .service(
-            web::scope("/account")
+            web::scope("/api/account")
                     .service(account_handlers::get_account_by_id)
                     .service(account_handlers::create_account)
                     .service(account_handlers::update_account)
@@ -68,11 +68,8 @@ async fn main() -> std::io::Result<()> {
                     .service(account_handlers::login_account)
                 )
         .service(
-            web::scope("/profile")
-                .service(profile_handlers::create_profile)
-                .service(profile_handlers::get_profile_by_id)
-                .service(profile_handlers::update_profile)
-                .service(profile_handlers::delete_profile)
+            web::scope("/api/profile")
+                .service(profile_handlers::profile)
         )
     })
     .bind("127.0.0.1:8000")?

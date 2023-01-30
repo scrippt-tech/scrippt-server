@@ -1,5 +1,5 @@
 use jsonwebtoken::{encode, decode, Header, Algorithm, Validation, EncodingKey, DecodingKey};
-use crate::models::account::Claims;
+use crate::models::user::Claims;
 
 pub fn encode_jwt(id: String, email: String, secret: &str) -> String {
     let my_claims = Claims {
