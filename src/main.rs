@@ -2,10 +2,9 @@ mod models;
 mod handlers;
 mod repository;
 mod auth;
-mod routes;
 
 use actix_web::{App, web, HttpServer};
-use handlers::{account_handlers, profile_handlers};
+use handlers::{routes, account_handlers, profile_handlers};
 use repository::db::DatabaseRepository;
 use handlebars::Handlebars;
 use env_logger::fmt::Color;
@@ -41,6 +40,8 @@ async fn main() -> std::io::Result<()> {
         })
         .init();
 
+    log::info!("Starting server on port 8000...");
+
     // Database
     let db = DatabaseRepository::new().await;
     let data = web::Data::new(db);
@@ -48,17 +49,18 @@ async fn main() -> std::io::Result<()> {
     // Handlebars
     let mut handlebars = Handlebars::new();
     handlebars
-        .register_templates_directory(".html", "./static/templates")
+        .register_templates_directory(".hbs", "./static/templates")
         .unwrap();
     let handlebars_ref = web::Data::new(handlebars);
-
-    log::info!("Server started on port 8000");
 
     HttpServer::new(move || {
         App::new()
         .app_data(data.clone())
         .app_data(handlebars_ref.clone())
-        .service(routes::index)
+        .service(
+            web::scope("/")
+                .service(routes::index)
+        )
         .service(
             web::scope("/api/account")
                     .service(account_handlers::get_account_by_id)
