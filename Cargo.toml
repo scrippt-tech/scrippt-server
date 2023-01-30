@@ -26,6 +26,6 @@ rand = "0.8.3"
 handlebars = { version = "4.3.6", features = ["dir_source"] }
 
 [dependencies.mongodb]
-version = "2.2.0"
+version = "2.3.1"
 default-features = false
 features = ["async-std-runtime"] 

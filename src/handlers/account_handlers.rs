@@ -3,9 +3,10 @@ use std::env;
 use log;
 
 use crate::{
-    repository::db::DatabaseRepository, models::user::{
-    User, UserResponse, AuthResponse, Credentials, UserUpdate
-}};
+    repository::db::DatabaseRepository, 
+    models::user::{User, UserResponse, AuthResponse, Credentials, UserUpdate}, 
+    models::profile::ProfileInfo,
+};
 use crate::auth::jwt::encode_jwt;
 use crate::auth::user_auth::AuthorizationService;
 use crate::auth::utils;
@@ -18,14 +19,20 @@ pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> Ht
     }
 
     let hash_password = utils::generate_hash(&acc.password);
+    
+    let empty_profile = ProfileInfo {
+        education: vec![],
+        experience: vec![],
+        skills: vec![],
+    };
 
     let data = User {
         id: None,
         name: acc.name.to_owned(),
         email: acc.email.to_owned(),
         password: hash_password.to_owned(),
-        profile: None,
-        documents: vec![],
+        profile: Some(empty_profile),
+        documents: Some(vec![]),
         date_created: Some(chrono::Utc::now().timestamp()),
         date_updated: Some(chrono::Utc::now().timestamp()),
     };
@@ -50,8 +57,6 @@ pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> Ht
 
 #[get("/{id}")]
 pub async fn get_account_by_id(db: Data<DatabaseRepository>, path: Path<String>, _auth: AuthorizationService) -> HttpResponse {
-    // TODO: Don't send password back to client
-    log::info!("Getting account by id: {:?}", path);
     let id = path.into_inner();
     if id.is_empty() {
         return HttpResponse::BadRequest().body("Invalid id");
@@ -65,7 +70,7 @@ pub async fn get_account_by_id(db: Data<DatabaseRepository>, path: Path<String>,
                 id: acc.id.unwrap().to_hex(),
                 name: acc.name,
                 email: acc.email,
-                profile: acc.profile,
+                profile: acc.profile.unwrap_or_default(),
             };
             HttpResponse::Ok().json(response)
         },
@@ -84,7 +89,6 @@ pub async fn update_account(db: Data<DatabaseRepository>, path: Path<String>, ac
     let data = UserUpdate {
         name: acc.name.to_owned(),
         email: acc.email.to_owned(),
-        password: acc.password.to_owned(),
         date_updated: chrono::Utc::now().timestamp(),
     };
 

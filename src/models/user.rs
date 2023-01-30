@@ -12,7 +12,7 @@ pub struct User {
     pub email: String,
     pub password: String,
     pub profile: Option<ProfileInfo>,
-    pub documents: Vec<Document>,
+    pub documents: Option<Vec<Document>>,
     pub date_created: Option<i64>,
     pub date_updated: Option<i64>,
 }
@@ -28,14 +28,13 @@ pub struct UserResponse {
     pub id: String,
     pub name: String,
     pub email: String,
-    pub profile: Option<ProfileInfo>,
+    pub profile: ProfileInfo,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserUpdate {
     pub name: String,
     pub email: String,
-    pub password: String,
     pub date_updated: i64,
 }
 

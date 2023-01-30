@@ -69,7 +69,7 @@ async fn main() -> std::io::Result<()> {
                 )
         .service(
             web::scope("/api/profile")
-                .service(profile_handlers::update_profile)
+                .service(profile_handlers::profile)
         )
     })
     .bind("127.0.0.1:8000")?
