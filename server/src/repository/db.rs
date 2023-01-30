@@ -2,7 +2,7 @@ use std::env;
 use log;
 use mongodb::{
     Client, Collection,
-    bson::{extjson::de::Error, doc, Document},
+    bson::{extjson::de::Error, doc},
     results::{InsertOneResult, UpdateResult, DeleteResult},
     bson::oid::ObjectId,
 };
@@ -42,12 +42,14 @@ impl DatabaseRepository {
             let filter = doc! {"_id": obj_id};
             let account_detail = self.user_collection
                                                 .find_one(filter, None)
-                                                .await
-                                                .ok()
-                                                .expect("Failed to execute find");
+                                                .await;
             match account_detail {
-                Some(account) => Ok(account),
-                None => Err(Error::DeserializationError { message: "Account not found".to_string() })
+                Ok(Some(account)) => Ok(account),
+                Ok(None) => Err(Error::DeserializationError { message: "Account not found".to_string() }),
+                Err(e) => {
+                    log::error!("Failed to get account {}", id);
+                    Err(Error::DeserializationError { message: e.to_string() })
+                }
             }
         }
     
@@ -55,12 +57,14 @@ impl DatabaseRepository {
             let filter = doc! {"email": email};
             let account_detail = self.user_collection
                                                 .find_one(filter, None)
-                                                .await
-                                                .ok()
-                                                .expect("Failed to execute find");
+                                                .await;
             match account_detail {
-                Some(account) => Ok(account),
-                None => Err(Error::DeserializationError { message: "Account not found".to_string() })
+                Ok(Some(account)) => Ok(account),
+                Ok(None) => Err(Error::DeserializationError { message: "Account not found".to_string() }),
+                Err(e) => {
+                    log::error!("Failed to get account by email {}", email);
+                    Err(Error::DeserializationError { message: e.to_string() })
+                }
             }
         }
     
@@ -77,10 +81,14 @@ impl DatabaseRepository {
             };
             let user = self.user_collection
                                             .insert_one(new_doc, None)
-                                            .await
-                                            .ok()
-                                            .expect("Failed to insert document");
-            Ok(user)
+                                            .await;
+            match user {
+                Ok(result) => Ok(result),
+                Err(e) => {
+                    log::error!("Failed to create account {}", e);
+                    Err(Error::DeserializationError { message: e.to_string() })
+                }
+            }
         }
     
         pub async fn update_account(&self, id: &str, user: &UserUpdate) -> Result<UpdateResult, Error> {
@@ -95,10 +103,19 @@ impl DatabaseRepository {
             };
             let updated_doc = self.user_collection
                                                 .update_one(filter, new_doc, None)
-                                                .await
-                                                .ok()
-                                                .expect("Failed to update document");
-            Ok(updated_doc)
+                                                .await;
+            match updated_doc {
+                Ok(result) => {
+                    match result.modified_count {
+                        1 => Ok(result),
+                        _ => Err(Error::DeserializationError { message: "Failed to update document".to_string() })
+                    }
+                },
+                Err(e) => {
+                    log::error!("Failed to update account {}", id);
+                    Err(Error::DeserializationError { message: e.to_string() })
+                }
+            }
         }
     
         pub async fn delete_account(&self, id: &str) -> Result<DeleteResult, Error> {
@@ -106,10 +123,19 @@ impl DatabaseRepository {
             let filter = doc! {"_id": obj_id};
             let account_detail = self.user_collection
                                                 .delete_one(filter, None)
-                                                .await
-                                                .ok()
-                                                .expect("Failed to execute find");
-            Ok(account_detail)
+                                                .await;
+            match account_detail {
+                Ok(result) => {
+                    match result.deleted_count {
+                        1 => Ok(result),
+                        _ => Err(Error::DeserializationError { message: "Failed to delete document".to_string() })
+                    }
+                },
+                Err(e) => {
+                    log::error!("Failed to delete account {}", id);
+                    Err(Error::DeserializationError { message: e.to_string() })
+                }
+            }
         }
 
         /// Create a profile
@@ -119,60 +145,32 @@ impl DatabaseRepository {
         ///    date must be a valid timestamp
         ///
         pub async fn create_profile(&self, id: &str, profile: ProfileInfo, date: i64) -> Result<UpdateResult, Error> {
-            let filter = doc! {"_id": id};
-
-            let mut education_vec: Vec<Document> = Vec::new();
-            let mut experience_vec: Vec<Document> = Vec::new();
-            let mut skills_vec: Vec<Document> = Vec::new();
-
-            for education in profile.education {
-                education_vec.push(doc! {
-                    "school": education.school.to_owned(),
-                    "degree": education.degree.to_owned(),
-                    "field_of_study": education.field_of_study.to_owned(),
-                    "from": education.from.to_owned(),
-                    "to": education.to.to_owned(),
-                    "description": education.description.to_owned(),
-                });
-            }
-
-            for experience in profile.experience {
-                experience_vec.push(doc! {
-                    "name": experience.name.to_owned(),
-                    "type": experience.type_.to_owned(),
-                    "title": experience.title.to_owned(),
-                    "location": experience.location.to_owned(),
-                    "from": experience.from.to_owned(),
-                    "to": experience.to.to_owned(),
-                    "current": experience.current.to_owned(),
-                    "description": experience.description.to_owned(),
-                });
-            }
-
-            for skill in profile.skills {
-                skills_vec.push(doc! {
-                    "skill": skill.skill.to_owned(),
-                    "level": skill.level.to_owned(),
-                });
-            }
+            let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
+            let filter = doc! {"_id": obj_id};
 
             let update = doc! {
                 "$set": {
-                    "profile.education": education_vec,
-                    "profile.experience": experience_vec,
-                    "profile.skills": skills_vec,
+                    "profile.education": profile.education.to_owned(),
+                    "profile.experience": profile.experience.to_owned(),
+                    "profile.skills": profile.skills.to_owned(),
                     "date_updated": date,
                 }
             };
+
             let result = self.user_collection
                                         .update_one(filter, update, None)
-                                        .await
-                                        .ok()
-                                        .expect("Failed to update document");
-            log::info!("Created {} profile for account {}", result.modified_count, id);
-            match result.modified_count {
-                1 => Ok(result),
-                _ => Err(Error::DeserializationError { message: "Failed to create profile".to_string() })
+                                        .await;
+            match result {
+                Ok(result) => {
+                    match result.modified_count {
+                        1 => Ok(result),
+                        _ => Err(Error::DeserializationError { message: "Failed to add document".to_string() })
+                    }
+                },
+                Err(e) => {
+                    log::error!("Failed to create profile for account {}", id);
+                    Err(Error::DeserializationError { message: e.to_string() })
+                }
             }
         }
 
@@ -183,7 +181,8 @@ impl DatabaseRepository {
         ///     date must be a valid timestamp
         /// 
         pub async fn update_profile(&self, id: &str, profile: ProfileInfo, date: i64) -> Result<UpdateResult, Error> {
-            let filter = doc! {"_id": id};
+            let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
+            let filter = doc! {"_id": obj_id};
             let update = doc! {
                 "$set": {
                     "profile.education": profile.education.to_owned(),
@@ -192,22 +191,26 @@ impl DatabaseRepository {
                     "date_updated": date,
                 }
             };
-            // print profile
-            log::info!("profile: {:?}", profile.education);
             let result = self.user_collection
                                         .update_one(filter, update, None)
-                                        .await
-                                        .ok()
-                                        .expect("Failed to update document");
-            log::info!("Updated {} profile for account {}", result.modified_count, id);
-            match result.modified_count {
-                1 => Ok(result),
-                _ => Err(Error::DeserializationError { message: "Failed to update profile".to_string() })
+                                        .await;
+            match result {
+                Ok(result) => {
+                    match result.modified_count {
+                        1 => Ok(result),
+                        _ => Err(Error::DeserializationError { message: "Failed to add document".to_string() })
+                    }
+                },
+                Err(e) => {
+                    log::error!("Failed to update profile for account {}", id);
+                    Err(Error::DeserializationError { message: e.to_string() })
+                }
             }
         }
 
         pub async fn add_document(&self, id: &str, document: DocumentInfo, date: i64) -> Result<UpdateResult, Error> {
-            let filter = doc! {"_id": id};
+            let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
+            let filter = doc! {"_id": obj_id};
             let update = doc! {
                 "$push": {
                     "documents": {
@@ -223,13 +226,18 @@ impl DatabaseRepository {
             };
             let result = self.user_collection
                                         .update_one(filter, update, None)
-                                        .await
-                                        .ok()
-                                        .expect("Failed to update document");
-            log::info!("Added {} document for account {}", result.modified_count, id);
-            match result.modified_count {
-                1 => Ok(result),
-                _ => Err(Error::DeserializationError { message: "Failed to add document".to_string() })
+                                        .await;
+            match result {
+                Ok(result) => {
+                    match result.modified_count {
+                        1 => Ok(result),
+                        _ => Err(Error::DeserializationError { message: "Failed to add document".to_string() })
+                    }
+                },
+                Err(e) => {
+                    log::error!("Failed to add document for account {}", id);
+                    Err(Error::DeserializationError { message: e.to_string() })
+                }
             }
         }
 
