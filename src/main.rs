@@ -1,10 +1,13 @@
 mod models;
 mod handlers;
 mod repository;
+mod website;
 mod auth;
 
 use actix_web::{App, web, HttpServer};
-use handlers::{routes, account_handlers, profile_handlers};
+use actix_files as fs;
+use handlers::{account_handlers, profile_handlers};
+use website::routes;
 use repository::db::DatabaseRepository;
 use handlebars::Handlebars;
 use env_logger::fmt::Color;
@@ -51,12 +54,17 @@ async fn main() -> std::io::Result<()> {
     handlebars
         .register_templates_directory(".hbs", "./static/templates")
         .unwrap();
+    handlebars
+        .register_partial("navbar", include_str!("../static/templates/navbar.hbs"))
+        .unwrap();
     let handlebars_ref = web::Data::new(handlebars);
 
     HttpServer::new(move || {
         App::new()
         .app_data(data.clone())
         .app_data(handlebars_ref.clone())
+        // serve css files from static folder
+        .service(fs::Files::new("/static/css", "./static/css").show_files_listing())
         .service(
             web::scope("/")
                 .service(routes::index)
