@@ -63,7 +63,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
         .app_data(data.clone())
         .app_data(handlebars_ref.clone())
-        .service(fs::Files::new("/public/css", "./public").show_files_listing())
+        .service(fs::Files::new("/css", "./static/css"))
         .service(
             web::scope("/")
                 .service(routes::index)
