@@ -1,15 +1,11 @@
 mod models;
 mod handlers;
 mod repository;
-mod website;
 mod auth;
 
 use actix_web::{App, web, HttpServer, middleware::Logger};
-use actix_files as fs;
 use handlers::{account_handlers, profile_handlers, document_handlers};
-use website::routes;
 use repository::db::DatabaseRepository;
-use handlebars::Handlebars;
 use env_logger::fmt::Color;
 use std::io::Write;
 use dotenv::dotenv;
@@ -47,26 +43,10 @@ async fn main() -> std::io::Result<()> {
     let db = DatabaseRepository::new().await;
     let data = web::Data::new(db);
 
-    // Handlebars
-    let mut handlebars = Handlebars::new();
-    handlebars
-        .register_templates_directory(".hbs", "./server/templates")
-        .unwrap();
-    handlebars
-        .register_partial("navbar", include_str!("../templates/navbar.hbs"))
-        .unwrap();
-    let handlebars_ref = web::Data::new(handlebars);
-
     HttpServer::new(move || {
         App::new()
         .wrap(Logger::default())
         .app_data(data.clone())
-        .app_data(handlebars_ref.clone())
-        .service(fs::Files::new("/css", "./static/css"))
-        .service(
-            web::scope("/")
-                .service(routes::index)
-        )
         .service(
             web::scope("/api/account")
                     .service(account_handlers::get_account_by_id)
