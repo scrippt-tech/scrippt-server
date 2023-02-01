@@ -4,7 +4,7 @@ mod repository;
 mod website;
 mod auth;
 
-use actix_web::{App, web, HttpServer};
+use actix_web::{App, web, HttpServer, middleware::Logger};
 use actix_files as fs;
 use handlers::{account_handlers, profile_handlers, document_handlers};
 use website::routes;
@@ -61,6 +61,8 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
+        .wrap(Logger::default())
+        .wrap(Logger::new("%a %{User-Agent}i"))
         .app_data(data.clone())
         .app_data(handlebars_ref.clone())
         .service(fs::Files::new("/css", "./static/css"))
