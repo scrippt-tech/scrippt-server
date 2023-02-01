@@ -21,10 +21,10 @@ if [ "$MODE" = "dev" ]; then
     echo "Starting server in dev mode"
     if [ -n "$LOG_LEVEL" ]; then
         echo "Setting log level to $LOG_LEVEL"
-        RUST_LOG=$LOG_LEVEL cargo run -p server
+        RUST_LOG=$LOG_LEVEL cargo watch -x run -p server
     elif [ -z "$LOG_LEVEL" ]; then
         echo "Setting log level to info"
-        RUST_LOG=info cargo run -p server
+        RUST_LOG=info cargo watch -x run -p server
     else
         echo "Invalid log level"
         echo "Usage: server [dev|prod] [info|debug|warn|error]"
