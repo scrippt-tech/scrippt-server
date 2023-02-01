@@ -19,7 +19,6 @@ LOG_LEVEL=$2
 
 if [ "$MODE" = "dev" ]; then
     echo "Starting server in dev mode"
-    # if log level is set to any value
     if [ -n "$LOG_LEVEL" ]; then
         echo "Setting log level to $LOG_LEVEL"
         RUST_LOG=$LOG_LEVEL cargo run -p server
@@ -33,15 +32,17 @@ if [ "$MODE" = "dev" ]; then
     fi
 elif [ "$MODE" = "prod" ]; then
     echo "Starting server in prod mode"
-    for i in "$@"
-    do
-    case $i in
-        --log-level=*)
-        LOG_LEVEL="${i#*=}"
-        shift
-        ;;
-    esac
-    done
+    if [ -n "$LOG_LEVEL" ]; then
+        echo "Setting log level to $LOG_LEVEL"
+        RUST_LOG=$LOG_LEVEL cargo run -p server --release
+    elif [ -z "$LOG_LEVEL" ]; then
+        echo "Setting log level to info"
+        RUST_LOG=info cargo run -p server --release
+    else
+        echo "Invalid log level"
+        echo "Usage: server [dev|prod] [info|debug|warn|error]"
+        exit 1
+    fi
 else
     echo "Invalid mode"
     echo "Usage: server [dev|prod] [info|debug|warn|error]"
