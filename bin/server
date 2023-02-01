@@ -19,19 +19,11 @@ LOG_LEVEL=$2
 
 if [ "$MODE" = "dev" ]; then
     echo "Starting server in dev mode"
-    if [ "$LOG_LEVEL" = "info" ]; then
-        echo "Setting log level to info"
-        RUST_LOG=info cargo run -p server
-    elif [ "$LOG_LEVEL" = "debug" ]; then
-        echo "Setting log level to debug"
-        RUST_LOG=debug cargo run -p server
-    elif [ "$LOG_LEVEL" = "warn" ]; then
-        echo "Setting log level to warn"
-        RUST_LOG=warn cargo run -p server
-    elif [ "$LOG_LEVEL" = "error" ]; then
-        echo "Setting log level to error"
-        RUST_LOG=error cargo run -p server
-    elif [ "$LOG_LEVEL" = "" ]; then
+    # if log level is set to any value
+    if [ -n "$LOG_LEVEL" ]; then
+        echo "Setting log level to $LOG_LEVEL"
+        RUST_LOG=$LOG_LEVEL cargo run -p server
+    elif [ -z "$LOG_LEVEL" ]; then
         echo "Setting log level to info"
         RUST_LOG=info cargo run -p server
     else
