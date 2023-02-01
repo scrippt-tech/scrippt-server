@@ -1,14 +1,57 @@
 #!/bin/bash
 
 # This script is used to start the server
-# two options are available:
-# - dev: starts the server in cargo watch mode
-# - prod: generates a binary executable
+# It takes one argument:
+#   - dev: starts the server in cargo-watch mode
+#   - prod: starts the server in production mode
+# It takes one option to specify the level of logging:
+#   --log-level=info: sets the log level to info (default)
+#   --log-level=debug: sets the log level to debug
+#   --log-level=warn: sets the log level to warn
+#   --log-level=error: sets the log level to error
 
-if [ "$1" = "dev" ]; then
-    cargo watch -x run -p server
-elif [ "$1" = "prod" ]; then
-    cargo build --release
+# The script will exit with an error if the argument is not dev or prod
+# The script will exit with an error if the log level is not valid
+# The script will exit with an error if the server is already running
+
+MODE=$1
+LOG_LEVEL=$2
+
+if [ "$MODE" = "dev" ]; then
+    echo "Starting server in dev mode"
+    if [ "$LOG_LEVEL" = "info" ]; then
+        echo "Setting log level to info"
+        RUST_LOG=info cargo run -p server
+    elif [ "$LOG_LEVEL" = "debug" ]; then
+        echo "Setting log level to debug"
+        RUST_LOG=debug cargo run -p server
+    elif [ "$LOG_LEVEL" = "warn" ]; then
+        echo "Setting log level to warn"
+        RUST_LOG=warn cargo run -p server
+    elif [ "$LOG_LEVEL" = "error" ]; then
+        echo "Setting log level to error"
+        RUST_LOG=error cargo run -p server
+    elif [ "$LOG_LEVEL" = "" ]; then
+        echo "Setting log level to info"
+        RUST_LOG=info cargo run -p server
+    else
+        echo "Invalid log level"
+        echo "Usage: server [dev|prod] [info|debug|warn|error]"
+        exit 1
+    fi
+elif [ "$MODE" = "prod" ]; then
+    echo "Starting server in prod mode"
+    for i in "$@"
+    do
+    case $i in
+        --log-level=*)
+        LOG_LEVEL="${i#*=}"
+        shift
+        ;;
+    esac
+    done
 else
-    echo "Usage: ./bin/server [dev|prod]"
+    echo "Invalid mode"
+    echo "Usage: server [dev|prod] [info|debug|warn|error]"
+    exit 1
 fi

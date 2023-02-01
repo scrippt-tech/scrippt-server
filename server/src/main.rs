@@ -19,8 +19,6 @@ use log;
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
 
-    // Logger
-    std::env::set_var("RUST_LOG", "info");
     env_logger::builder()
         .format(|buf, record| {
             let level = record.level();
@@ -62,7 +60,6 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
         .wrap(Logger::default())
-        .wrap(Logger::new("%a %{User-Agent}i"))
         .app_data(data.clone())
         .app_data(handlebars_ref.clone())
         .service(fs::Files::new("/css", "./static/css"))
