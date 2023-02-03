@@ -1,14 +1,16 @@
 use std::env;
 use log;
+use serde_json;
 use mongodb::{
     Client, Collection,
-    bson::{extjson::de::Error, doc},
+    bson::{extjson::de::Error, doc, Bson},
     results::{InsertOneResult, UpdateResult, DeleteResult},
     bson::oid::ObjectId,
 };
+use bson::to_bson;
 
 use crate::models::{user::{User, UserUpdate}};
-use crate::models::profile::ProfileInfo;
+use crate::models::profile::Profile;
 use crate::models::document::DocumentInfo;
 
 pub struct DatabaseRepository {
@@ -144,15 +146,15 @@ impl DatabaseRepository {
         ///    profile must be a valid profile
         ///    date must be a valid timestamp
         ///
-        pub async fn create_profile(&self, id: &str, profile: ProfileInfo, date: i64) -> Result<UpdateResult, Error> {
+        pub async fn create_profile(&self, id: &str, profile: Profile, date: i64) -> Result<UpdateResult, Error> {
             let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
             let filter = doc! {"_id": obj_id};
 
             let update = doc! {
                 "$set": {
-                    "profile.education": profile.education.to_owned(),
-                    "profile.experience": profile.experience.to_owned(),
-                    "profile.skills": profile.skills.to_owned(),
+                    "profile.education": to_bson(&profile.education).unwrap(),
+                    "profile.experience": to_bson(&profile.experience).unwrap(),
+                    "profile.skills": to_bson(&profile.skills).unwrap(),
                     "date_updated": date,
                 }
             };
@@ -174,21 +176,27 @@ impl DatabaseRepository {
             }
         }
 
-        /// Update a profile
-        /// Requires:
-        ///     id must be a valid ObjectId
-        ///     profile must be a valid profile
-        ///     date must be a valid timestamp
+        /// Add profile field
         /// 
-        pub async fn update_profile(&self, id: &str, profile: ProfileInfo, date: i64) -> Result<UpdateResult, Error> {
+        /// ## Arguments:
+        /// - id: String
+        /// - target: String
+        /// - value: serde_json::Value
+        /// - date: i64
+        /// 
+        /// ## Returns:
+        /// - UpdateResult
+        /// 
+        pub async fn add_profile_field(&self, id: &String, target: String, value: serde_json::Value, date: i64) -> Result<UpdateResult, Error> {
             let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
             let filter = doc! {"_id": obj_id};
+            let target = format!("profile.{}", target);
             let update = doc! {
+                "$push": {
+                    target: to_bson(&value).unwrap()
+                },
                 "$set": {
-                    "profile.education": profile.education.to_owned(),
-                    "profile.experience": profile.experience.to_owned(),
-                    "profile.skills": profile.skills.to_owned(),
-                    "date_updated": date,
+                    "profile.date_updated": date,
                 }
             };
             let result = self.user_collection
@@ -202,11 +210,88 @@ impl DatabaseRepository {
                     }
                 },
                 Err(e) => {
-                    log::error!("Failed to update profile for account {}", id);
+                    log::error!("Failed to add profile field for account {}", id);
                     Err(Error::DeserializationError { message: e.to_string() })
                 }
             }
         }
+
+        /// Update profile field
+        /// 
+        /// ## Arguments:
+        /// - id: ObjectId of the user
+        /// - target: the field to be updated
+        /// - value: the new value for the field
+        /// - date: the timestamp of the update
+        /// 
+        /// ## Returns:
+        /// - UpdateResult
+        /// 
+        pub async fn update_profile_field(&self, id: &String, target: String, value: serde_json::Value, date: i64) -> Result<UpdateResult, Error> {
+            let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
+            let filter = doc! {"_id": obj_id};
+            let target = format!("profile.{}", target);
+            let update = doc! {
+                "$set": {
+                    target: to_bson(&value).unwrap(),
+                    "profile.date_updated": date,
+                }
+            };
+            let result = self.user_collection
+                                        .update_one(filter, update, None)
+                                        .await;
+            match result {
+                Ok(result) => {
+                    match result.modified_count {
+                        1 => Ok(result),
+                        _ => Err(Error::DeserializationError { message: "Failed to add document".to_string() })
+                    }
+                },
+                Err(e) => {
+                    log::error!("Failed to update profile field for account {}", id);
+                    Err(Error::DeserializationError { message: e.to_string() })
+                }
+            }
+        }
+
+        /// Remove profile field
+        /// 
+        /// ## Arguments:
+        /// - id: ObjectId of the user
+        /// - target: the field to be removed
+        /// - date: the timestamp of the update
+        /// 
+        /// ## Returns:
+        /// - UpdateResult
+        /// 
+        pub async fn remove_profile_field(&self, id: &String, target: String, date: i64) -> Result<UpdateResult, Error> {
+            let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
+            let filter = doc! {"_id": obj_id};
+            let target = format!("profile.{}", target);
+            // set the field to null
+            let update = doc! {
+                "$set": {
+                    target: Bson::Null,
+                    "profile.date_updated": date,
+                }
+            };
+            let result = self.user_collection
+                                        .update_one(filter, update, None)
+                                        .await;
+            match result {
+                Ok(result) => {
+                    match result.modified_count {
+                        1 => Ok(result),
+                        _ => Err(Error::DeserializationError { message: "Failed to add document".to_string() })
+                    }
+                },
+                Err(e) => {
+                    log::error!("Failed to remove profile field for account {}", id);
+                    Err(Error::DeserializationError { message: e.to_string() })
+                }
+            }
+        }
+
 
         pub async fn add_document(&self, id: &str, document: DocumentInfo, date: i64) -> Result<UpdateResult, Error> {
             let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");

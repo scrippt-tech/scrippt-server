@@ -5,7 +5,7 @@ use log;
 use crate::{
     repository::db::DatabaseRepository, 
     models::user::{User, UserResponse, AuthResponse, Credentials, UserUpdate}, 
-    models::profile::ProfileInfo,
+    models::profile::Profile,
 };
 use crate::auth::jwt::encode_jwt;
 use crate::auth::user_auth::AuthorizationService;
@@ -20,10 +20,11 @@ pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> Ht
 
     let hash_password = utils::generate_hash(&acc.password);
     
-    let empty_profile = ProfileInfo {
+    let empty_profile = Profile {
         education: vec![],
         experience: vec![],
         skills: vec![],
+        date_updated: chrono::Utc::now().timestamp(),
     };
 
     let data = User {

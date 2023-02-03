@@ -57,7 +57,8 @@ async fn main() -> std::io::Result<()> {
                 )
         .service(
             web::scope("/api/profile")
-                .service(profile_handlers::profile)
+                .service(profile_handlers::create_profile)
+                .service(profile_handlers::change_profile)
         )
         .service(
             web::scope("/api/document")
