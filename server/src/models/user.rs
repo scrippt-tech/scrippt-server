@@ -18,30 +18,10 @@ pub struct User {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct AuthResponse {
-    pub id: String,
-    pub token: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct UserResponse {
-    pub id: String,
-    pub name: String,
-    pub email: String,
-    pub profile: Profile,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct UserUpdate {
     pub name: String,
     pub email: String,
     pub date_updated: i64,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Credentials {
-    pub email: String,
-    pub password: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

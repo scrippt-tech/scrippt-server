@@ -1,15 +1,36 @@
 use actix_web::{web::{Data, Json, Path}, get, post, delete, put, HttpResponse};
+use serde::{Serialize, Deserialize};
 use std::env;
 use log;
 
 use crate::{
-    repository::db::DatabaseRepository, 
-    models::user::{User, UserResponse, AuthResponse, Credentials, UserUpdate}, 
+    repository::database::DatabaseRepository, 
+    models::user::{User, UserUpdate}, 
     models::profile::Profile,
 };
 use crate::auth::jwt::encode_jwt;
 use crate::auth::user_auth::AuthorizationService;
 use crate::auth::utils;
+
+#[derive(Debug, Serialize, Deserialize)]
+struct AuthResponse {
+    pub id: String,
+    pub token: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct UserResponse {
+    pub id: String,
+    pub name: String,
+    pub email: String,
+    pub profile: Profile,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Credentials {
+    pub email: String,
+    pub password: String,
+}
 
 #[post("/create")]
 pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> HttpResponse {
@@ -79,7 +100,7 @@ pub async fn get_account_by_id(db: Data<DatabaseRepository>, path: Path<String>,
     }
 }
 
-
+// TODO: Change this to a patch request
 #[put("/{id}")]
 pub async fn update_account(db: Data<DatabaseRepository>, path: Path<String>, acc: Json<User>, _auth: AuthorizationService) -> HttpResponse {
     let id = path.into_inner();

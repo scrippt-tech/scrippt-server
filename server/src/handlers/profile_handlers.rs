@@ -3,7 +3,7 @@ use serde::{Serialize, Deserialize};
 use serde_json;
 
 use crate::models::profile::Profile;
-use crate::repository::db::DatabaseRepository;
+use crate::repository::database::DatabaseRepository;
 use crate::auth::user_auth::AuthorizationService;
 
 #[derive(Clone)]
@@ -14,9 +14,8 @@ pub struct ProfilePatch {
     pub value: serde_json::Value,
 }
 
-/// Create a new user profile
-/// 
-/// Request body:
+/// # Create a new user profile
+/// ## Request body:
 /// ```
 /// {
 ///    "education": Array,
@@ -24,8 +23,7 @@ pub struct ProfilePatch {
 ///    "skills": Array,
 /// }
 /// ```
-/// 
-/// Response body:  (if successful)
+/// ## Response body:  (if successful)
 /// ```
 /// {
 ///   "education": Array,
@@ -34,7 +32,6 @@ pub struct ProfilePatch {
 ///   "date_updated": Int,
 /// }
 /// ```
-/// 
 #[put("/{id}")]
 pub async fn create_profile(db: Data<DatabaseRepository>, path: Path<String>, profile: Json<Profile>, _auth: AuthorizationService) -> HttpResponse {
     let id = path.into_inner();
@@ -60,24 +57,22 @@ pub async fn create_profile(db: Data<DatabaseRepository>, path: Path<String>, pr
     }
 }
 
+/// # Change a user profile
 /// Follows RFC 6902
 /// 
 /// https://tools.ietf.org/html/rfc6902
-/// 
-/// Request body:
+/// ## Request body:
 /// ```
 /// {
-///    "op": "add" | "update | "remove",
-///    "path": "<field>",
-///    "value": "new value"
+///    "op": "add" | "update" | "remove",
+///    "path": <field>,
+///    "value": <new value>
 /// }
 /// ```
-/// 
-/// Response:  (if successful)
+/// ## Response:  (if successful)
 /// ```
 /// 204 No Content
 /// ```
-/// 
 #[patch("/{id}")]
 pub async fn change_profile(db: Data<DatabaseRepository>, path: Path<String>, profile: Json<ProfilePatch>, _auth: AuthorizationService) -> HttpResponse {
     let id = path.into_inner();

@@ -52,28 +52,3 @@ pub struct Skill {
     pub skill: String,
     pub level: String,
 }
-
-// Implementations
-// impl std::convert::From<Profile> for Bson {
-//     fn from(profile: Profile) -> Self {
-//         Bson::Document(to_bson(&profile).unwrap().as_document().unwrap().clone())
-//     }
-// }
-
-// impl std::convert::From<Education> for Bson {
-//     fn from(education: Education) -> Self {
-//         Bson::Document(to_bson(&education).unwrap().as_document().unwrap().clone())
-//     }
-// }
-
-// impl std::convert::From<Experience> for Bson {
-//     fn from(experience: Experience) -> Self {
-//         Bson::Document(to_bson(&experience).unwrap().as_document().unwrap().clone())
-//     }
-// }
-
-// impl std::convert::From<Skill> for Bson {
-//     fn from(skill: Skill) -> Self {
-//         Bson::Document(to_bson(&skill).unwrap().as_document().unwrap().clone())
-//     }
-// }
