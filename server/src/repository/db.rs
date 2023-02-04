@@ -3,7 +3,7 @@ use log;
 use serde_json;
 use mongodb::{
     Client, Collection,
-    bson::{extjson::de::Error, doc, Bson},
+    bson::{extjson::de::Error, doc},
     results::{InsertOneResult, UpdateResult, DeleteResult},
     bson::oid::ObjectId,
 };
@@ -264,14 +264,19 @@ impl DatabaseRepository {
         /// ## Returns:
         /// - UpdateResult
         /// 
-        pub async fn remove_profile_field(&self, id: &String, target: String, date: i64) -> Result<UpdateResult, Error> {
+        pub async fn remove_profile_field(&self, id: &String, target: String, value: serde_json::Value, date: i64) -> Result<UpdateResult, Error> {
             let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
-            let filter = doc! {"_id": obj_id};
+            let name = value["skill"].as_str().unwrap();
             let target = format!("profile.{}", target);
-            // set the field to null
+            let filter = doc! {"_id": obj_id};
+            // pull object from target array where skill = name
             let update = doc! {
+                "$pull": {
+                    target: {
+                        "skill": name
+                    }
+                },
                 "$set": {
-                    target: Bson::Null,
                     "profile.date_updated": date,
                 }
             };

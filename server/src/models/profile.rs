@@ -9,7 +9,7 @@ pub struct Profile {
     pub education: Vec<Education>,
     pub experience: Vec<Experience>,
     pub skills: Vec<Skill>,
-    pub date_updated: i64,
+    pub date_updated: Option<i64>,
 }
 
 #[derive(Clone)]

@@ -24,7 +24,7 @@ pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> Ht
         education: vec![],
         experience: vec![],
         skills: vec![],
-        date_updated: chrono::Utc::now().timestamp(),
+        date_updated: Some(chrono::Utc::now().timestamp()),
     };
 
     let data = User {

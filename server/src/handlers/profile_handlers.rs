@@ -104,7 +104,7 @@ pub async fn change_profile(db: Data<DatabaseRepository>, path: Path<String>, pr
             };
         },
         "remove" => {
-            return match db.remove_profile_field(&id, target, date).await {
+            return match db.remove_profile_field(&id, target, value, date).await {
                 Ok(_result) => HttpResponse::NoContent().finish(),
                 Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
             };
