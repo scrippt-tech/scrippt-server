@@ -9,7 +9,7 @@ use mongodb::{
 };
 use bson::to_bson;
 
-use crate::models::{user::{User, UserUpdate}};
+use crate::models::user::{User, UserUpdate};
 use crate::models::profile::Profile;
 use crate::models::document::DocumentInfo;
 
