@@ -187,10 +187,11 @@ impl DatabaseRepository {
         /// ## Returns:
         /// - UpdateResult
         /// 
-        pub async fn add_profile_field(&self, id: &String, target: String, value: serde_json::Value, date: i64) -> Result<UpdateResult, Error> {
+        pub async fn add_profile_field(&self, id: &String, target: String, mut value: serde_json::Value, date: i64) -> Result<UpdateResult, Error> {
             let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
             let filter = doc! {"_id": obj_id};
             let target = format!("profile.{}", target);
+            value["field_id"] = serde_json::json!(ObjectId::new().to_hex());
             let update = doc! {
                 "$push": {
                     target: to_bson(&value).unwrap()

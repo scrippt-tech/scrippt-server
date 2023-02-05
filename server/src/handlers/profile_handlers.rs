@@ -49,10 +49,7 @@ pub async fn create_profile(db: Data<DatabaseRepository>, path: Path<String>, pr
     });
 
     match db.create_profile(&id, profile.into_inner(), date).await {
-        Ok(_result) => {
-          
-            HttpResponse::Created().json(created)
-        },
+        Ok(_result) => HttpResponse::Created().json(created),
         Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
     }
 }

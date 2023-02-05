@@ -1,6 +1,5 @@
 use serde::{Serialize, Deserialize};
-// use mongodb::bson::{self, Bson};
-// use bson::to_bson;
+use mongodb::bson::oid::ObjectId;
 
 /// Profile models
 #[derive(Clone)]
@@ -24,6 +23,7 @@ pub enum ExperienceType {
 #[derive(Clone)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Experience {
+    pub index: Option<ObjectId>,
     pub name: String,
     pub type_: i32,
     pub title: String,
@@ -37,6 +37,7 @@ pub struct Experience {
 #[derive(Clone)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Education {
+    pub index: Option<ObjectId>,
     pub school: String,
     pub degree: String,
     pub field_of_study: String,
@@ -49,6 +50,7 @@ pub struct Education {
 #[derive(Clone)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Skill {
+    pub index: Option<ObjectId>,
     pub skill: String,
     pub level: String,
 }
