@@ -29,14 +29,20 @@ impl DatabaseRepository {
                                                                                     .await
                                                                                     .ok()
                                                                                     .expect("Failed to parse client options");
-            let client = Client::with_options(client_options).ok().expect("Failed to initialize client");
-            
-            log::info!("Connected to MongoDB at {}", host);
-    
-            let db = client.database("scrippt");
-            let user_collection: Collection<User> = db.collection("users");
+            let client = Client::with_options(client_options);
 
-            DatabaseRepository { user_collection }
+            match client {
+                Ok(client) => {
+                    log::info!("Connected to MongoDB at {}", host);
+                    let db = client.database("scrippt");
+                    let user_collection: Collection<User> = db.collection("users");
+                    DatabaseRepository { user_collection }
+                },
+                Err(_) => {
+                    log::error!("Failed to connect to MongoDB at {}", host);
+                    panic!("Panicking because of failed connection to MongoDB");
+                }
+            }  
         }
 
         pub async fn get_account(&self, id: &str) -> Result<User, Error> {
@@ -140,58 +146,27 @@ impl DatabaseRepository {
             }
         }
 
-        /// Create a profile
-        /// Requires:
-        ///    id must be a valid ObjectId
-        ///    profile must be a valid profile
-        ///    date must be a valid timestamp
-        ///
-        pub async fn create_profile(&self, id: &str, profile: Profile, date: i64) -> Result<UpdateResult, Error> {
+        /// Gets a user profile field from the database by filtering on the user id
+        pub async fn get_profile(&self, id: &String) -> Result<Profile, Error> {
             let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
             let filter = doc! {"_id": obj_id};
-
-            let update = doc! {
-                "$set": {
-                    "profile.education": to_bson(&profile.education).unwrap(),
-                    "profile.experience": to_bson(&profile.experience).unwrap(),
-                    "profile.skills": to_bson(&profile.skills).unwrap(),
-                    "date_updated": date,
-                }
-            };
-
-            let result = self.user_collection
-                                        .update_one(filter, update, None)
-                                        .await;
+            let result = self.user_collection.find_one(filter, None).await;
             match result {
-                Ok(result) => {
-                    match result.modified_count {
-                        1 => Ok(result),
-                        _ => Err(Error::DeserializationError { message: "Failed to add document".to_string() })
-                    }
-                },
+                Ok(Some(user)) => user.profile.ok_or(Error::DeserializationError { message: "Profile not found".to_string() }),
+                Ok(None) => Err(Error::DeserializationError { message: "Profile not found".to_string() }),
                 Err(e) => {
-                    log::error!("Failed to create profile for account {}", id);
+                    log::error!("Failed to get profile {}", id);
                     Err(Error::DeserializationError { message: e.to_string() })
                 }
             }
         }
 
-        /// Add profile field
-        /// 
-        /// ## Arguments:
-        /// - id: String
-        /// - target: String
-        /// - value: serde_json::Value
-        /// - date: i64
-        /// 
-        /// ## Returns:
-        /// - UpdateResult
-        /// 
+        /// Add profile field to the database given an id, target, value and date
         pub async fn add_profile_field(&self, id: &String, target: String, mut value: serde_json::Value, date: i64) -> Result<UpdateResult, Error> {
             let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
             let filter = doc! {"_id": obj_id};
             let target = format!("profile.{}", target);
-            value["field_id"] = serde_json::json!(ObjectId::new().to_hex());
+            value["field_id"] = serde_json::Value::String(ObjectId::new().to_hex()); 
             let update = doc! {
                 "$push": {
                     target: to_bson(&value).unwrap()
@@ -218,23 +193,17 @@ impl DatabaseRepository {
         }
 
         /// Update profile field
-        /// 
-        /// ## Arguments:
-        /// - id: ObjectId of the user
-        /// - target: the field to be updated
-        /// - value: the new value for the field
-        /// - date: the timestamp of the update
-        /// 
-        /// ## Returns:
-        /// - UpdateResult
-        /// 
         pub async fn update_profile_field(&self, id: &String, target: String, value: serde_json::Value, date: i64) -> Result<UpdateResult, Error> {
             let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
-            let filter = doc! {"_id": obj_id};
-            let target = format!("profile.{}", target);
+            let field_id = format!("profile.{}.field_id", target); // profile.target.field_id
+            let field = format!("profile.{}.$", target); // profile.target.$
+            let filter = doc! {
+                "_id": obj_id,
+                field_id: value["field_id"].to_string()
+            };
             let update = doc! {
                 "$set": {
-                    target: to_bson(&value).unwrap(),
+                    field: to_bson(&value).unwrap(),
                     "profile.date_updated": date,
                 }
             };
@@ -256,25 +225,16 @@ impl DatabaseRepository {
         }
 
         /// Remove profile field
-        /// 
-        /// ## Arguments:
-        /// - id: ObjectId of the user
-        /// - target: the field to be removed
-        /// - date: the timestamp of the update
-        /// 
-        /// ## Returns:
-        /// - UpdateResult
-        /// 
         pub async fn remove_profile_field(&self, id: &String, target: String, value: serde_json::Value, date: i64) -> Result<UpdateResult, Error> {
             let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
-            let name = value["skill"].as_str().unwrap();
-            let target = format!("profile.{}", target);
             let filter = doc! {"_id": obj_id};
+            let field_id = value["field_id"].as_str().unwrap();
+            let target = format!("profile.{}", target);
             // pull object from target array where skill = name
             let update = doc! {
                 "$pull": {
                     target: {
-                        "skill": name
+                        "field_id": field_id
                     }
                 },
                 "$set": {
