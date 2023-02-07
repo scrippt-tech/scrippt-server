@@ -32,13 +32,39 @@ pub struct Credentials {
     pub password: String,
 }
 
+/// API route to create a user with an empty profile and no documents
+/// 
+/// ### Request body:
+/// ```
+/// {
+///    "name": String,
+///    "email": String,
+///    "password": String
+/// }
+/// ```
+/// 
+/// ### Response body (if successful):
+/// ```
+/// 201 Created
+/// {
+///     "id": String,
+///     "token": String
+/// }
+/// ```
+/// 
+/// ### Response body (if unsuccessful):
+/// ```
+/// 409 Conflict
+/// "Account already exists"
+/// ```
 #[post("/create")]
 pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> HttpResponse {
     let exists = db.get_account_by_email(&acc.email).await;
     if exists.is_ok() {
-        return HttpResponse::BadRequest().body("Account already exists");
+        return HttpResponse::Conflict().body("Account already exists");
     }
 
+    let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
     let hash_password = utils::generate_hash(&acc.password);
     
     let empty_profile = Profile {
@@ -60,9 +86,7 @@ pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> Ht
     };
 
     let result = db.create_account(data).await;
-    log::info!("Created account: {:?}", result);
 
-    let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
     let id = result.as_ref().unwrap().inserted_id.as_object_id().unwrap().to_hex();
     let token = encode_jwt(id.to_owned(), acc.email.to_owned(), &secret);
 
@@ -72,7 +96,7 @@ pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> Ht
     };
 
     match result {
-        Ok(_result) => HttpResponse::Ok().json(response),
+        Ok(_result) => HttpResponse::Created().json(response),
         Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
     }
 }

@@ -3,6 +3,7 @@ use log;
 use serde_json;
 use mongodb::{
     Client, Collection,
+    options::ClientOptions,
     bson::{extjson::de::Error, doc},
     results::{InsertOneResult, UpdateResult, DeleteResult},
     bson::oid::ObjectId,
@@ -25,10 +26,10 @@ impl DatabaseRepository {
             let host = env::var("MONGO_HOST").expect("MONGO_HOST must be set");
     
             let uri = format!("mongodb+srv://{}:{}@{}/?retryWrites=true&w=majority", user.as_str(), psw.as_str(), host.as_str());
-            let client_options = mongodb::options::ClientOptions::parse(uri)
-                                                                                    .await
-                                                                                    .ok()
-                                                                                    .expect("Failed to parse client options");
+            let client_options = ClientOptions::parse(uri)
+                                                                        .await
+                                                                        .ok()
+                                                                        .expect("Failed to parse client options");
             let client = Client::with_options(client_options);
 
             match client {
@@ -45,6 +46,7 @@ impl DatabaseRepository {
             }  
         }
 
+        /// Get a user account by id
         pub async fn get_account(&self, id: &str) -> Result<User, Error> {
             let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
             let filter = doc! {"_id": obj_id};
@@ -61,6 +63,7 @@ impl DatabaseRepository {
             }
         }
     
+        /// Get a user account by email
         pub async fn get_account_by_email(&self, email: &str) -> Result<User, Error> {
             let filter = doc! {"email": email};
             let account_detail = self.user_collection
@@ -76,6 +79,7 @@ impl DatabaseRepository {
             }
         }
     
+        /// Create a new account
         pub async fn create_account(&self, user: User) -> Result<InsertOneResult, Error> {
             let new_doc = User {
                 id: None,
@@ -99,6 +103,7 @@ impl DatabaseRepository {
             }
         }
     
+        /// Update an existing account's name and email
         pub async fn update_account(&self, id: &str, user: &UserUpdate) -> Result<UpdateResult, Error> {
             let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
             let filter = doc! {"_id": obj_id};
@@ -126,6 +131,7 @@ impl DatabaseRepository {
             }
         }
     
+        /// Delete an existing account
         pub async fn delete_account(&self, id: &str) -> Result<DeleteResult, Error> {
             let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
             let filter = doc! {"_id": obj_id};
