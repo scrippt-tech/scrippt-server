@@ -17,11 +17,10 @@ pub struct User {
     pub date_updated: Option<i64>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct UserUpdate {
+pub struct Account {
+    pub id: String,
     pub name: String,
     pub email: String,
-    pub date_updated: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

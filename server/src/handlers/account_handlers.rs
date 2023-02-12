@@ -1,11 +1,10 @@
-use actix_web::{web::{Data, Json, Path}, get, post, delete, put, HttpResponse};
+use actix_web::{web::{Data, Json, Path}, get, post, delete, patch, HttpResponse};
 use serde::{Serialize, Deserialize};
 use std::env;
-use log;
 
 use crate::{
     repository::database::DatabaseRepository, 
-    models::user::{User, UserUpdate}, 
+    models::user::User, 
     models::profile::Profile,
 };
 use crate::auth::jwt::encode_jwt;
@@ -30,6 +29,14 @@ struct UserResponse {
 pub struct Credentials {
     pub email: String,
     pub password: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PatchRequest {
+    name: Option<String>,
+    email: Option<String>,
+    password: Option<String>,
+    date_updated: Option<i64>,
 }
 
 /// API route to create a user with an empty profile and no documents
@@ -124,26 +131,66 @@ pub async fn get_account_by_id(db: Data<DatabaseRepository>, path: Path<String>,
     }
 }
 
-// TODO: Change this to a patch request
-#[put("/{id}")]
-pub async fn update_account(db: Data<DatabaseRepository>, path: Path<String>, acc: Json<User>, _auth: AuthorizationService) -> HttpResponse {
+/// API route to update a user's account. Request takes in a one or multiple of the following fields:
+/// 
+/// - name
+/// - email
+/// - password
+/// 
+/// ### Request body:
+/// ```
+/// {
+///   "name" | "email" | "password": String,
+///   ...
+/// }
+/// ```
+/// 
+/// ### Response body (if successful):
+/// ```
+/// 200 OK
+/// {
+///    "id": String,
+///    "name": String,
+///    "email": String,
+/// }
+/// ```
+/// 
+/// ### Response body (if unsuccessful):
+/// ```
+/// 400 Bad Request
+/// <error message>
+/// ```
+#[patch("/{id}")]
+pub async fn update_account(db: Data<DatabaseRepository>, path: Path<String>, mut req: Json<PatchRequest>, _auth: AuthorizationService) -> HttpResponse {
     let id = path.into_inner();
     if id.is_empty() {
         return HttpResponse::BadRequest().body("Invalid id");
     }
 
-    let data = UserUpdate {
-        name: acc.name.to_owned(),
-        email: acc.email.to_owned(),
-        date_updated: chrono::Utc::now().timestamp(),
+    let mut password_hash = String::new();
+    if req.password.is_some() {
+        password_hash = utils::generate_hash(&req.password.take().unwrap());
+    }
+
+    let update_data = User {
+        id: None,
+        name: req.name.take().unwrap(),
+        email: req.email.take(),
+        password: password_hash,
+        profile: None,
+        documents: None,
+        date_created: None,
+        date_updated: Some(chrono::Utc::now().timestamp()),
     };
 
-    let update_result = db.update_account(&id, &data).await;
+    let update_result = db.update_account(&id, req).await;
+
+    let res = db.get_account(&id).await.unwrap();
 
     match update_result {
         Ok(acc) => {
             if acc.matched_count == 1 {
-                HttpResponse::Ok().json(data)
+                HttpResponse::Ok().json(res)
             } else {
                 HttpResponse::BadRequest().body("Account not found")
             }
