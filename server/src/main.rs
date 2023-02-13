@@ -5,7 +5,7 @@ mod auth;
 
 use actix_web::{App, web, HttpServer, middleware::Logger};
 use handlers::{account_handlers, profile_handlers, document_handlers};
-use repository::db::DatabaseRepository;
+use repository::database::DatabaseRepository;
 use env_logger::fmt::Color;
 use std::io::Write;
 use dotenv::dotenv;
@@ -57,7 +57,7 @@ async fn main() -> std::io::Result<()> {
                 )
         .service(
             web::scope("/api/profile")
-                .service(profile_handlers::profile)
+                .service(profile_handlers::change_profile)
         )
         .service(
             web::scope("/api/document")

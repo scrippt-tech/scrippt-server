@@ -1,14 +1,14 @@
 use serde::{Serialize, Deserialize};
-use mongodb::bson::{self, Bson};
-use bson::to_bson;
+use mongodb::bson::oid::ObjectId;
 
 /// Profile models
 #[derive(Clone)]
 #[derive(Debug, Serialize, Deserialize, Default)]
-pub struct ProfileInfo {
+pub struct Profile {
     pub education: Vec<Education>,
     pub experience: Vec<Experience>,
     pub skills: Vec<Skill>,
+    pub date_updated: Option<i64>,
 }
 
 #[derive(Clone)]
@@ -23,6 +23,7 @@ pub enum ExperienceType {
 #[derive(Clone)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Experience {
+    pub field_id: Option<ObjectId>,
     pub name: String,
     pub type_: i32,
     pub title: String,
@@ -36,6 +37,7 @@ pub struct Experience {
 #[derive(Clone)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Education {
+    pub field_id: Option<ObjectId>,
     pub school: String,
     pub degree: String,
     pub field_of_study: String,
@@ -48,31 +50,7 @@ pub struct Education {
 #[derive(Clone)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Skill {
+    pub field_id: Option<ObjectId>,
     pub skill: String,
     pub level: String,
-}
-
-/// Implementations
-impl std::convert::From<ProfileInfo> for Bson {
-    fn from(profile: ProfileInfo) -> Self {
-        Bson::Document(to_bson(&profile).unwrap().as_document().unwrap().clone())
-    }
-}
-
-impl std::convert::From<Education> for Bson {
-    fn from(education: Education) -> Self {
-        Bson::Document(to_bson(&education).unwrap().as_document().unwrap().clone())
-    }
-}
-
-impl std::convert::From<Experience> for Bson {
-    fn from(experience: Experience) -> Self {
-        Bson::Document(to_bson(&experience).unwrap().as_document().unwrap().clone())
-    }
-}
-
-impl std::convert::From<Skill> for Bson {
-    fn from(skill: Skill) -> Self {
-        Bson::Document(to_bson(&skill).unwrap().as_document().unwrap().clone())
-    }
 }

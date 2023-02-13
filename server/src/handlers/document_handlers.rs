@@ -1,7 +1,7 @@
 use actix_web::{web::{Data, Json, Path}, put, HttpResponse};
 
 use crate::{
-    repository::db::DatabaseRepository, 
+    repository::database::DatabaseRepository, 
     models::document::{DocumentInfo, DocumentRequest},
     auth::user_auth::AuthorizationService,
 };
