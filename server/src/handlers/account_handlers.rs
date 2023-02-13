@@ -54,12 +54,6 @@ pub struct Credentials {
 ///     "token": String
 /// }
 /// ```
-///
-/// ### Response body (if unsuccessful):
-/// ```
-/// 409 Conflict
-/// "Account already exists"
-/// ```
 #[post("/create")]
 pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> HttpResponse {
     let exists = db.get_account_by_email(&acc.email).await;
@@ -168,12 +162,6 @@ pub async fn get_account_by_id(
 ///    "name": String,
 ///    "email": String,
 /// }
-/// ```
-///
-/// ### Response body (if unsuccessful):
-/// ```
-/// 400 Bad Request
-/// <error message>
 /// ```
 #[patch("/{id}")]
 pub async fn update_account(
