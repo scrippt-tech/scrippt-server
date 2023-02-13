@@ -1,8 +1,8 @@
 use mongodb::bson::oid::ObjectId;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-use crate::models::profile::Profile;
 use crate::models::document::DocumentInfo;
+use crate::models::profile::Profile;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct User {

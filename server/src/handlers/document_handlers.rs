@@ -1,13 +1,22 @@
-use actix_web::{web::{Data, Json, Path}, put, HttpResponse};
+use actix_web::{
+    put,
+    web::{Data, Json, Path},
+    HttpResponse,
+};
 
 use crate::{
-    repository::database::DatabaseRepository, 
-    models::document::{DocumentInfo, DocumentRequest},
     auth::user_auth::AuthorizationService,
+    models::document::{DocumentInfo, DocumentRequest},
+    repository::database::DatabaseRepository,
 };
 
 #[put("/{id}")]
-pub async fn document(db: Data<DatabaseRepository>, path: Path<String>, doc: Json<DocumentRequest>, _auth: AuthorizationService) -> HttpResponse {
+pub async fn document(
+    db: Data<DatabaseRepository>,
+    path: Path<String>,
+    doc: Json<DocumentRequest>,
+    _auth: AuthorizationService,
+) -> HttpResponse {
     let id = path.into_inner();
     if id.is_empty() {
         return HttpResponse::BadRequest().body("Invalid id");

@@ -1,15 +1,19 @@
-use actix_web::{web::{Data, Json, Path}, get, post, delete, patch, HttpResponse};
-use serde::{Serialize, Deserialize};
+use actix_web::{
+    delete, get, patch, post,
+    web::{Data, Json, Path},
+    HttpResponse,
+};
+use serde::{Deserialize, Serialize};
 use std::env;
 
-use crate::{
-    repository::database::DatabaseRepository, 
-    models::user::{User, AccountPatch}, 
-    models::profile::Profile,
-};
 use crate::auth::jwt::encode_jwt;
 use crate::auth::user_auth::AuthorizationService;
 use crate::auth::utils;
+use crate::{
+    models::profile::Profile,
+    models::user::{AccountPatch, User},
+    repository::database::DatabaseRepository,
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct AuthResponse {
@@ -32,7 +36,7 @@ pub struct Credentials {
 }
 
 /// API route to create a user with an empty profile and no documents
-/// 
+///
 /// ### Request body:
 /// ```
 /// {
@@ -41,7 +45,7 @@ pub struct Credentials {
 ///    "password": String
 /// }
 /// ```
-/// 
+///
 /// ### Response body (if successful):
 /// ```
 /// 201 Created
@@ -50,7 +54,7 @@ pub struct Credentials {
 ///     "token": String
 /// }
 /// ```
-/// 
+///
 /// ### Response body (if unsuccessful):
 /// ```
 /// 409 Conflict
@@ -65,7 +69,7 @@ pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> Ht
 
     let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
     let hash_password = utils::generate_hash(&acc.password);
-    
+
     let empty_profile = Profile {
         education: vec![],
         experience: vec![],
@@ -86,13 +90,16 @@ pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> Ht
 
     let result = db.create_account(data).await;
 
-    let id = result.as_ref().unwrap().inserted_id.as_object_id().unwrap().to_hex();
+    let id = result
+        .as_ref()
+        .unwrap()
+        .inserted_id
+        .as_object_id()
+        .unwrap()
+        .to_hex();
     let token = encode_jwt(id.to_owned(), acc.email.to_owned(), &secret);
 
-    let response = AuthResponse {
-        id,
-        token,
-    };
+    let response = AuthResponse { id, token };
 
     match result {
         Ok(_result) => HttpResponse::Created().json(response),
@@ -101,7 +108,7 @@ pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> Ht
 }
 
 /// API route to get a user's account by id. Returns a user's account information.
-/// 
+///
 /// ### Response body (if successful):
 /// ```
 /// 200 OK
@@ -113,14 +120,18 @@ pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> Ht
 /// }
 /// ```
 #[get("/{id}")]
-pub async fn get_account_by_id(db: Data<DatabaseRepository>, path: Path<String>, _auth: AuthorizationService) -> HttpResponse {
+pub async fn get_account_by_id(
+    db: Data<DatabaseRepository>,
+    path: Path<String>,
+    _auth: AuthorizationService,
+) -> HttpResponse {
     let id = path.into_inner();
     if id.is_empty() {
         return HttpResponse::BadRequest().body("Invalid id");
     }
 
     let acc = db.get_account(&id).await;
-    
+
     match acc {
         Ok(acc) => {
             let response = UserResponse {
@@ -130,17 +141,17 @@ pub async fn get_account_by_id(db: Data<DatabaseRepository>, path: Path<String>,
                 profile: acc.profile.unwrap_or_default(),
             };
             HttpResponse::Ok().json(response)
-        },
+        }
         Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
     }
 }
 
 /// API route to update a user's account. Request takes in a one or multiple of the following fields:
-/// 
+///
 /// - name
 /// - email
 /// - password
-/// 
+///
 /// ### Request body:
 /// ```
 /// {
@@ -148,7 +159,7 @@ pub async fn get_account_by_id(db: Data<DatabaseRepository>, path: Path<String>,
 ///   ...
 /// }
 /// ```
-/// 
+///
 /// ### Response body (if successful):
 /// ```
 /// 200 OK
@@ -158,14 +169,19 @@ pub async fn get_account_by_id(db: Data<DatabaseRepository>, path: Path<String>,
 ///    "email": String,
 /// }
 /// ```
-/// 
+///
 /// ### Response body (if unsuccessful):
 /// ```
 /// 400 Bad Request
 /// <error message>
 /// ```
 #[patch("/{id}")]
-pub async fn update_account(db: Data<DatabaseRepository>, path: Path<String>, mut req: Json<AccountPatch>, _auth: AuthorizationService) -> HttpResponse {
+pub async fn update_account(
+    db: Data<DatabaseRepository>,
+    path: Path<String>,
+    mut req: Json<AccountPatch>,
+    _auth: AuthorizationService,
+) -> HttpResponse {
     let id = path.into_inner();
     if id.is_empty() {
         return HttpResponse::BadRequest().body("Invalid id");
@@ -201,13 +217,16 @@ pub async fn update_account(db: Data<DatabaseRepository>, path: Path<String>, mu
 }
 
 #[delete("/{id}")]
-pub async fn delete_account(db: Data<DatabaseRepository>, path: Path<String>, _auth: AuthorizationService) -> HttpResponse {
-
+pub async fn delete_account(
+    db: Data<DatabaseRepository>,
+    path: Path<String>,
+    _auth: AuthorizationService,
+) -> HttpResponse {
     let id = path.into_inner();
     if id.is_empty() {
         return HttpResponse::BadRequest().body("Invalid id");
     }
-    
+
     let acc = db.delete_account(&id).await;
 
     match acc {
@@ -219,7 +238,6 @@ pub async fn delete_account(db: Data<DatabaseRepository>, path: Path<String>, _a
 // Authentication Handlers
 #[post("/login")]
 pub async fn login_account(db: Data<DatabaseRepository>, cred: Json<Credentials>) -> HttpResponse {
-
     let exists = db.get_account_by_email(&cred.email).await;
     if exists.is_err() {
         return HttpResponse::BadRequest().body("Account does not exist");
@@ -234,10 +252,7 @@ pub async fn login_account(db: Data<DatabaseRepository>, cred: Json<Credentials>
     let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
     let token = encode_jwt(id.to_owned(), cred.email.to_owned(), &secret);
 
-    let response = AuthResponse {
-        id,
-        token,
-    };
+    let response = AuthResponse { id, token };
 
     HttpResponse::Ok().json(response)
 }

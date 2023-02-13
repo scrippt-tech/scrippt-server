@@ -1,12 +1,15 @@
-use actix_web::{web::{Data, Json, Path}, patch, HttpResponse};
-use serde::{Serialize, Deserialize};
+use actix_web::{
+    patch,
+    web::{Data, Json, Path},
+    HttpResponse,
+};
+use serde::{Deserialize, Serialize};
 use serde_json;
 
-use crate::repository::database::DatabaseRepository;
 use crate::auth::user_auth::AuthorizationService;
+use crate::repository::database::DatabaseRepository;
 
-#[derive(Clone)]
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct ProfilePatch {
     pub op: String,
     pub path: String,
@@ -15,7 +18,7 @@ pub struct ProfilePatch {
 
 /// # Change a user profile
 /// Follows RFC 6902
-/// 
+///
 /// https://tools.ietf.org/html/rfc6902
 /// ## Request body:
 /// ```
@@ -28,7 +31,7 @@ pub struct ProfilePatch {
 /// ## Response:  (if successful)
 /// ```
 /// 200 OK
-/// 
+///
 /// Body:  (if successful)
 /// {
 ///     "experience": Array,
@@ -38,7 +41,12 @@ pub struct ProfilePatch {
 /// }
 /// ```
 #[patch("/{id}")]
-pub async fn change_profile(db: Data<DatabaseRepository>, path: Path<String>, profile: Json<Vec<ProfilePatch>>, _auth: AuthorizationService) -> HttpResponse {
+pub async fn change_profile(
+    db: Data<DatabaseRepository>,
+    path: Path<String>,
+    profile: Json<Vec<ProfilePatch>>,
+    _auth: AuthorizationService,
+) -> HttpResponse {
     let id = path.into_inner();
     if id.is_empty() {
         return HttpResponse::BadRequest().body("Invalid id");
@@ -51,22 +59,22 @@ pub async fn change_profile(db: Data<DatabaseRepository>, path: Path<String>, pr
         match change.op.as_str() {
             "add" => {
                 match db.add_profile_field(&id, target, value, date).await {
-                    Ok(_result) => { continue },
+                    Ok(_result) => continue,
                     Err(e) => return HttpResponse::InternalServerError().json(e.to_string()),
                 };
-            },
+            }
             "update" => {
                 match db.update_profile_field(&id, target, value, date).await {
-                    Ok(_result) => { continue },
+                    Ok(_result) => continue,
                     Err(e) => return HttpResponse::InternalServerError().json(e.to_string()),
                 };
-            },
+            }
             "remove" => {
                 match db.remove_profile_field(&id, target, value, date).await {
-                    Ok(_result) => { continue }, 
+                    Ok(_result) => continue,
                     Err(e) => return HttpResponse::InternalServerError().json(e.to_string()),
                 };
-            },
+            }
             _ => {
                 return HttpResponse::BadRequest().body("Invalid operation");
             }

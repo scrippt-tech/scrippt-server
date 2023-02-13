@@ -1,15 +1,15 @@
-mod models;
-mod handlers;
-mod repository;
 mod auth;
+mod handlers;
+mod models;
+mod repository;
 
-use actix_web::{App, web, HttpServer, middleware::Logger};
-use handlers::{account_handlers, profile_handlers, document_handlers};
-use repository::database::DatabaseRepository;
-use env_logger::fmt::Color;
-use std::io::Write;
+use actix_web::{middleware::Logger, web, App, HttpServer};
 use dotenv::dotenv;
+use env_logger::fmt::Color;
+use handlers::{account_handlers, document_handlers, profile_handlers};
 use log;
+use repository::database::DatabaseRepository;
+use std::io::Write;
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
@@ -29,7 +29,12 @@ async fn main() -> std::io::Result<()> {
             writeln!(
                 buf,
                 "{}:{} [{}] - {}",
-                record.file().unwrap_or_default().split('/').last().unwrap_or_default(),
+                record
+                    .file()
+                    .unwrap_or_default()
+                    .split('/')
+                    .last()
+                    .unwrap_or_default(),
                 record.line().unwrap_or(0),
                 style.value(level),
                 record.args()
@@ -45,24 +50,18 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
-        .wrap(Logger::default())
-        .app_data(data.clone())
-        .service(
-            web::scope("/api/account")
+            .wrap(Logger::default())
+            .app_data(data.clone())
+            .service(
+                web::scope("/api/account")
                     .service(account_handlers::get_account_by_id)
                     .service(account_handlers::create_account)
                     .service(account_handlers::update_account)
                     .service(account_handlers::delete_account)
-                    .service(account_handlers::login_account)
-                )
-        .service(
-            web::scope("/api/profile")
-                .service(profile_handlers::change_profile)
-        )
-        .service(
-            web::scope("/api/document")
-                .service(document_handlers::document)
-        )
+                    .service(account_handlers::login_account),
+            )
+            .service(web::scope("/api/profile").service(profile_handlers::change_profile))
+            .service(web::scope("/api/document").service(document_handlers::document))
     })
     .bind("127.0.0.1:8000")?
     .run()

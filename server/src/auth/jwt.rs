@@ -1,5 +1,5 @@
-use jsonwebtoken::{encode, decode, Header, Algorithm, Validation, EncodingKey, DecodingKey};
 use crate::models::user::Claims;
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 
 pub fn encode_jwt(id: String, email: String, secret: &str) -> String {
     let my_claims = Claims {
@@ -12,7 +12,8 @@ pub fn encode_jwt(id: String, email: String, secret: &str) -> String {
         &Header::default(),
         &my_claims,
         &EncodingKey::from_secret(secret.as_ref()),
-    ).unwrap();
+    )
+    .unwrap();
 
     token
 }
@@ -38,7 +39,6 @@ mod tests {
         dotenv().ok();
     }
 
-
     #[test]
     #[ignore = "This test requires a JWT_SECRET to be set"]
     fn test_encode_jwt() {
@@ -53,11 +53,12 @@ mod tests {
         let correct_token = encode(
             &Header::default(),
             &my_claims,
-            &EncodingKey::from_secret(secret.as_ref())).unwrap();
-
+            &EncodingKey::from_secret(secret.as_ref()),
+        )
+        .unwrap();
 
         let token = encode_jwt("1234".to_string(), "sant@gmail".to_string(), &secret);
-        
+
         assert_eq!(token, correct_token);
     }
 

@@ -1,9 +1,8 @@
-use serde::{Serialize, Deserialize};
 use mongodb::bson::oid::ObjectId;
+use serde::{Deserialize, Serialize};
 
 /// Profile models
-#[derive(Clone)]
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct Profile {
     pub education: Vec<Education>,
     pub experience: Vec<Experience>,
@@ -11,8 +10,7 @@ pub struct Profile {
     pub date_updated: Option<i64>,
 }
 
-#[derive(Clone)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ExperienceType {
     Work,
     Volunteer,
@@ -20,8 +18,7 @@ pub enum ExperienceType {
     Other,
 }
 
-#[derive(Clone)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Experience {
     pub field_id: Option<ObjectId>,
     pub name: String,
@@ -34,8 +31,7 @@ pub struct Experience {
     pub description: String,
 }
 
-#[derive(Clone)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Education {
     pub field_id: Option<ObjectId>,
     pub school: String,
@@ -47,8 +43,7 @@ pub struct Education {
     pub description: String,
 }
 
-#[derive(Clone)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Skill {
     pub field_id: Option<ObjectId>,
     pub skill: String,
