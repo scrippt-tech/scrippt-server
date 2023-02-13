@@ -10,7 +10,7 @@ use mongodb::{
 };
 use bson::to_bson;
 
-use crate::models::user::{User, UserUpdate};
+use crate::models::user::{User, AccountPatch};
 use crate::models::profile::Profile;
 use crate::models::document::DocumentInfo;
 
@@ -104,14 +104,12 @@ impl DatabaseRepository {
         }
     
         /// Update an existing account's name and email
-        pub async fn update_account(&self, id: &str, user: User) -> Result<UpdateResult, Error> {
+        pub async fn update_account(&self, id: &str, update: AccountPatch) -> Result<UpdateResult, Error> {
             let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
             let filter = doc! {"_id": obj_id};
             let new_doc = doc! {
                 "$set": {
-                    "name": user.name.to_owned(),
-                    "email": user.email.to_owned(),
-                    "date_updated": user.date_updated,
+                    update.path: update.value
                 }
             };
             let updated_doc = self.user_collection

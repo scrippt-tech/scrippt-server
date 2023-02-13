@@ -4,7 +4,7 @@ use std::env;
 
 use crate::{
     repository::database::DatabaseRepository, 
-    models::user::User, 
+    models::user::{User, AccountPatch}, 
     models::profile::Profile,
 };
 use crate::auth::jwt::encode_jwt;
@@ -29,14 +29,6 @@ struct UserResponse {
 pub struct Credentials {
     pub email: String,
     pub password: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PatchRequest {
-    name: Option<String>,
-    email: Option<String>,
-    password: Option<String>,
-    date_updated: Option<i64>,
 }
 
 /// API route to create a user with an empty profile and no documents
@@ -108,6 +100,18 @@ pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> Ht
     }
 }
 
+/// API route to get a user's account by id. Returns a user's account information.
+/// 
+/// ### Response body (if successful):
+/// ```
+/// 200 OK
+/// {
+///   "id": String,
+///   "name": String,
+///   "email": String,
+///   "profile": Object
+/// }
+/// ```
 #[get("/{id}")]
 pub async fn get_account_by_id(db: Data<DatabaseRepository>, path: Path<String>, _auth: AuthorizationService) -> HttpResponse {
     let id = path.into_inner();
@@ -161,29 +165,26 @@ pub async fn get_account_by_id(db: Data<DatabaseRepository>, path: Path<String>,
 /// <error message>
 /// ```
 #[patch("/{id}")]
-pub async fn update_account(db: Data<DatabaseRepository>, path: Path<String>, mut req: Json<PatchRequest>, _auth: AuthorizationService) -> HttpResponse {
+pub async fn update_account(db: Data<DatabaseRepository>, path: Path<String>, mut req: Json<AccountPatch>, _auth: AuthorizationService) -> HttpResponse {
     let id = path.into_inner();
     if id.is_empty() {
         return HttpResponse::BadRequest().body("Invalid id");
     }
 
-    let mut password_hash = String::new();
-    if req.password.is_some() {
-        password_hash = utils::generate_hash(&req.password.take().unwrap());
+    if req.path != "name" && req.path != "email" && req.path != "password" {
+        return HttpResponse::BadRequest().body("Invalid path");
     }
 
-    let update_data = User {
-        id: None,
-        name: req.name.take().unwrap(),
-        email: req.email.take(),
-        password: password_hash,
-        profile: None,
-        documents: None,
-        date_created: None,
-        date_updated: Some(chrono::Utc::now().timestamp()),
+    if req.path == "password" {
+        req.value = utils::generate_hash(&req.value);
+    }
+
+    let to_update = AccountPatch {
+        path: req.path.to_owned(),
+        value: req.value.to_owned(),
     };
 
-    let update_result = db.update_account(&id, req).await;
+    let update_result = db.update_account(&id, to_update).await;
 
     let res = db.get_account(&id).await.unwrap();
 
