@@ -1,0 +1,28 @@
+#!/bin/bash
+#
+# Testing script for the API server
+# 
+# Initializes a temporary docker MongoDB database and runs the API server tests
+# against it.
+#
+# Scrippt, Copyright (c) 2023
+
+# Stop on errors, print commands
+set -Eeuo pipefail
+
+# Set the log level to debug
+export RUST_LOG=debug
+
+# Check if docker desktop is running
+if ! docker ps > /dev/null; then
+    echo "Docker Desktop is not running"
+    exit 1
+fi
+
+# Start a docker MongoDB database
+if ! docker ps | grep -q mongo; then
+    docker run -d -p 27017:27017 --name test-scrippt mongo:latest
+fi
+
+# Run the tests
+cargo test

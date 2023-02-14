@@ -19,13 +19,8 @@ pub struct DatabaseRepository {
 
 impl DatabaseRepository {
     /// Initialize the repository with a MongoDB connection
-    pub async fn new(user: String, psw: String, host: String) -> Self {
-        let uri = format!(
-            "mongodb+srv://{}:{}@{}/?retryWrites=true&w=majority",
-            user.as_str(),
-            psw.as_str(),
-            host.as_str()
-        );
+    pub async fn new(uri: &str, host: String) -> Self {
+        let uri = uri.to_string();
         let client_options = ClientOptions::parse(uri)
             .await
             .ok()

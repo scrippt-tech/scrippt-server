@@ -246,9 +246,7 @@ pub async fn login_account(db: Data<DatabaseRepository>, cred: Json<Credentials>
     HttpResponse::Ok().json(response)
 }
 
-///
-/// Tests for the account handlers.
-///
+// Tests for the account handlers.
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -258,7 +256,7 @@ mod tests {
     use actix_web::{
         dev::{ServiceRequest, ServiceResponse},
         error::Error,
-        test, App,
+        http, middleware, test, App,
     };
 
     fn get_app() -> App<
@@ -270,11 +268,9 @@ mod tests {
             Error = Error,
         >,
     > {
-        let mongo_user = "test".to_string();
-        let mongo_pass = "test".to_string();
-        let mongo_host = "localhost:27017".to_string();
-        let db = DatabaseRepository::new(mongo_user, mongo_pass, mongo_host);
+        let db = DatabaseRepository::new("mongodb://localhost:27017", "localhost".to_string());
         App::new()
+            .wrap(middleware::Logger::default())
             .app_data(db)
             .service(create_account)
             .service(get_account_by_id)
@@ -283,25 +279,34 @@ mod tests {
             .service(login_account)
     }
 
+    // #[actix_web::test]
+    // async fn test_response() {
+    //     let app = test::init_service(
+    //         App::new().service(web::resource("/test").to(|| async { HttpResponse::Ok() })),
+    //     )
+    //     .await;
+
+    //     // Create request object
+    //     let req = test::TestRequest::with_uri("/test").to_request();
+
+    //     // Call application
+    //     let res = test::call_service(&app, req).await;
+    //     assert_eq!(res.status(), http::StatusCode::OK);
+    // }
+
     #[actix_rt::test]
     async fn test_create_account() {
-        let server = test::init_service(get_app()).await;
+        let app = test::init_service(get_app()).await;
         let req = test::TestRequest::post()
             .uri("/create")
-            .set_json(&User {
-                id: None,
-                name: "John Doe".to_string(),
-                email: "johndoe@email.com".to_string(),
-                password: "password".to_string(),
-                profile: None,
-                documents: None,
-                date_created: None,
-                date_updated: None,
-            })
+            .set_json(serde_json::json!({
+                "name": "John Doe",
+                "email": "johndoe@email.com",
+                "password": "password"
+            }))
             .to_request();
-
-        let resp = test::call_service(&server, req).await;
-        assert_eq!(resp.status(), 201);
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), http::StatusCode::CREATED);
     }
 
     #[actix_rt::test]
@@ -309,30 +314,20 @@ mod tests {
         let server = test::init_service(get_app()).await;
         let req = test::TestRequest::post()
             .uri("/create")
-            .set_json(&User {
-                id: None,
-                name: "John Doe".to_string(),
-                email: "johndoe@email.com".to_string(),
-                password: "password".to_string(),
-                profile: None,
-                documents: None,
-                date_created: None,
-                date_updated: None,
-            })
+            .set_json(serde_json::json!({
+                "name": "Jane Smith",
+                "email": "janesmit@email.com",
+                "password": "password"
+            }))
             .to_request();
 
         let req_dup = test::TestRequest::post()
             .uri("/create")
-            .set_json(&User {
-                id: None,
-                name: "John Doe".to_string(),
-                email: "johndoe@email.com".to_string(),
-                password: "password".to_string(),
-                profile: None,
-                documents: None,
-                date_created: None,
-                date_updated: None,
-            })
+            .set_json(serde_json::json!({
+                "name": "Jane Smith",
+                "email": "janesmit@email.com",
+                "password": "password"
+            }))
             .to_request();
 
         let resp = test::call_service(&server, req).await;

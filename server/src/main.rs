@@ -48,9 +48,15 @@ async fn main() -> std::io::Result<()> {
     let user = env::var("MONGO_USER").expect("MONGO_USER must be set");
     let psw = env::var("MONGO_PASSWORD").expect("MONGO_PASSWORD must be set");
     let host = env::var("MONGO_HOST").expect("MONGO_HOST must be set");
+    let uri = format!(
+        "mongodb+srv://{}:{}@{}/?retryWrites=true&w=majority",
+        user.as_str(),
+        psw.as_str(),
+        host.as_str()
+    );
 
     // Database
-    let db = DatabaseRepository::new(user, psw, host).await;
+    let db = DatabaseRepository::new(&uri, host).await;
     let data = web::Data::new(db);
 
     HttpServer::new(move || {
