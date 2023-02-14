@@ -342,4 +342,18 @@ impl DatabaseRepository {
             }
         }
     }
+
+    #[allow(dead_code)]
+    pub async fn drop_database(&self) -> Result<(), Error> {
+        let result = self.user_collection.drop(None).await;
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => {
+                log::error!("Failed to drop database");
+                Err(Error::DeserializationError {
+                    message: e.to_string(),
+                })
+            }
+        }
+    }
 }

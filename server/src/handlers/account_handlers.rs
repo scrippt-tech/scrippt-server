@@ -256,10 +256,17 @@ mod tests {
     use actix_web::{
         dev::{ServiceRequest, ServiceResponse},
         error::Error,
-        http, middleware, test, App,
+        http,
+        middleware::Logger,
+        test, web, App,
     };
+    use env_logger;
+    // use std::env;
+    use std::sync::Once;
 
-    fn get_app() -> App<
+    static INIT: Once = Once::new();
+
+    async fn get_app() -> App<
         impl ServiceFactory<
             ServiceRequest,
             Response = ServiceResponse<impl MessageBody>,
@@ -268,10 +275,15 @@ mod tests {
             Error = Error,
         >,
     > {
-        let db = DatabaseRepository::new("mongodb://localhost:27017", "localhost".to_string());
+        // set up the logger to debug
+        // env::set_var("RUST_LOG", "debug");
+        INIT.call_once(|| env_logger::init());
+        let db =
+            DatabaseRepository::new("mongodb://localhost:27017", "localhost".to_string()).await;
+        let _ = db.drop_database().await;
         App::new()
-            .wrap(middleware::Logger::default())
-            .app_data(db)
+            .wrap(Logger::default())
+            .app_data(web::Data::new(db))
             .service(create_account)
             .service(get_account_by_id)
             .service(update_account)
@@ -279,24 +291,10 @@ mod tests {
             .service(login_account)
     }
 
-    // #[actix_web::test]
-    // async fn test_response() {
-    //     let app = test::init_service(
-    //         App::new().service(web::resource("/test").to(|| async { HttpResponse::Ok() })),
-    //     )
-    //     .await;
-
-    //     // Create request object
-    //     let req = test::TestRequest::with_uri("/test").to_request();
-
-    //     // Call application
-    //     let res = test::call_service(&app, req).await;
-    //     assert_eq!(res.status(), http::StatusCode::OK);
-    // }
-
     #[actix_rt::test]
     async fn test_create_account() {
-        let app = test::init_service(get_app()).await;
+        let app = get_app().await;
+        let app = test::init_service(app).await;
         let req = test::TestRequest::post()
             .uri("/create")
             .set_json(serde_json::json!({
@@ -306,12 +304,14 @@ mod tests {
             }))
             .to_request();
         let resp = test::call_service(&app, req).await;
+        println!("{:?}", resp.response());
         assert_eq!(resp.status(), http::StatusCode::CREATED);
     }
 
     #[actix_rt::test]
     async fn test_create_account_duplicate() {
-        let server = test::init_service(get_app()).await;
+        let app = get_app().await;
+        let server = test::init_service(app).await;
         let req = test::TestRequest::post()
             .uri("/create")
             .set_json(serde_json::json!({

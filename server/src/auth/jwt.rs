@@ -32,7 +32,6 @@ pub fn decode_jwt(token: String, secret: &str) -> Result<Claims, jsonwebtoken::e
 mod tests {
     use super::*;
     use dotenv::dotenv;
-    use std::env;
 
     // call a function to set up the environment
     fn setup() {
@@ -40,10 +39,9 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "This test requires a JWT_SECRET to be set"]
     fn test_encode_jwt() {
         setup();
-        let secret: String = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
+        let secret: String = "secret".to_string();
         let my_claims = Claims {
             sub: "1234".to_string(),
             email: "sant@gmail".to_string(),
@@ -63,10 +61,9 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "This test requires a JWT_SECRET to be set"]
     fn test_decode_jwt() {
         setup();
-        let secret: String = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
+        let secret: String = "secret".to_string();
         let token = encode_jwt("1234".to_string(), "sant@gmail".to_string(), &secret);
         let decoded = decode_jwt(token, &secret).unwrap();
         assert_eq!(decoded.sub, "1234");
