@@ -8,7 +8,6 @@ use mongodb::{
     Client, Collection,
 };
 use serde_json;
-use std::env;
 
 use crate::models::document::DocumentInfo;
 use crate::models::profile::Profile;
@@ -20,11 +19,7 @@ pub struct DatabaseRepository {
 
 impl DatabaseRepository {
     /// Initialize the repository with a MongoDB connection
-    pub async fn new() -> Self {
-        let user = env::var("MONGO_USER").expect("MONGO_USER must be set");
-        let psw = env::var("MONGO_PASSWORD").expect("MONGO_PASSWORD must be set");
-        let host = env::var("MONGO_HOST").expect("MONGO_HOST must be set");
-
+    pub async fn new(user: String, psw: String, host: String) -> Self {
         let uri = format!(
             "mongodb+srv://{}:{}@{}/?retryWrites=true&w=majority",
             user.as_str(),

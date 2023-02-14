@@ -9,6 +9,7 @@ use env_logger::fmt::Color;
 use handlers::{account_handlers, document_handlers, profile_handlers};
 use log;
 use repository::database::DatabaseRepository;
+use std::env;
 use std::io::Write;
 
 #[actix_rt::main]
@@ -44,8 +45,12 @@ async fn main() -> std::io::Result<()> {
 
     log::info!("Starting server on port 8000...");
 
+    let user = env::var("MONGO_USER").expect("MONGO_USER must be set");
+    let psw = env::var("MONGO_PASSWORD").expect("MONGO_PASSWORD must be set");
+    let host = env::var("MONGO_HOST").expect("MONGO_HOST must be set");
+
     // Database
-    let db = DatabaseRepository::new().await;
+    let db = DatabaseRepository::new(user, psw, host).await;
     let data = web::Data::new(db);
 
     HttpServer::new(move || {

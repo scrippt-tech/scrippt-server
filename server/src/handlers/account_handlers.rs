@@ -57,6 +57,7 @@ pub struct Credentials {
 #[post("/create")]
 pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> HttpResponse {
     let exists = db.get_account_by_email(&acc.email).await;
+
     if exists.is_ok() {
         return HttpResponse::Conflict().body("Account already exists");
     }
@@ -243,4 +244,101 @@ pub async fn login_account(db: Data<DatabaseRepository>, cred: Json<Credentials>
     let response = AuthResponse { id, token };
 
     HttpResponse::Ok().json(response)
+}
+
+///
+/// Tests for the account handlers.
+///
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::repository::database::DatabaseRepository;
+    use actix_http::body::MessageBody;
+    use actix_service::ServiceFactory;
+    use actix_web::{
+        dev::{ServiceRequest, ServiceResponse},
+        error::Error,
+        test, App,
+    };
+
+    fn get_app() -> App<
+        impl ServiceFactory<
+            ServiceRequest,
+            Response = ServiceResponse<impl MessageBody>,
+            Config = (),
+            InitError = (),
+            Error = Error,
+        >,
+    > {
+        let mongo_user = "test".to_string();
+        let mongo_pass = "test".to_string();
+        let mongo_host = "localhost:27017".to_string();
+        let db = DatabaseRepository::new(mongo_user, mongo_pass, mongo_host);
+        App::new()
+            .app_data(db)
+            .service(create_account)
+            .service(get_account_by_id)
+            .service(update_account)
+            .service(delete_account)
+            .service(login_account)
+    }
+
+    #[actix_rt::test]
+    async fn test_create_account() {
+        let server = test::init_service(get_app()).await;
+        let req = test::TestRequest::post()
+            .uri("/create")
+            .set_json(&User {
+                id: None,
+                name: "John Doe".to_string(),
+                email: "johndoe@email.com".to_string(),
+                password: "password".to_string(),
+                profile: None,
+                documents: None,
+                date_created: None,
+                date_updated: None,
+            })
+            .to_request();
+
+        let resp = test::call_service(&server, req).await;
+        assert_eq!(resp.status(), 201);
+    }
+
+    #[actix_rt::test]
+    async fn test_create_account_duplicate() {
+        let server = test::init_service(get_app()).await;
+        let req = test::TestRequest::post()
+            .uri("/create")
+            .set_json(&User {
+                id: None,
+                name: "John Doe".to_string(),
+                email: "johndoe@email.com".to_string(),
+                password: "password".to_string(),
+                profile: None,
+                documents: None,
+                date_created: None,
+                date_updated: None,
+            })
+            .to_request();
+
+        let req_dup = test::TestRequest::post()
+            .uri("/create")
+            .set_json(&User {
+                id: None,
+                name: "John Doe".to_string(),
+                email: "johndoe@email.com".to_string(),
+                password: "password".to_string(),
+                profile: None,
+                documents: None,
+                date_created: None,
+                date_updated: None,
+            })
+            .to_request();
+
+        let resp = test::call_service(&server, req).await;
+        assert_eq!(resp.status(), 201);
+
+        let resp = test::call_service(&server, req_dup).await;
+        assert_eq!(resp.status(), 409);
+    }
 }
