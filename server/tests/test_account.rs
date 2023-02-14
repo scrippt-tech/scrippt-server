@@ -87,5 +87,5 @@ async fn test_create_account_duplicate() {
     assert_eq!(resp.status(), 201);
 
     let resp = test::call_service(&server, req_dup).await;
-    assert_eq!(resp.status(), 201);
+    assert_eq!(resp.status(), 409);
 }
