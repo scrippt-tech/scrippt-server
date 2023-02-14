@@ -1,14 +1,9 @@
-mod auth;
-mod handlers;
-mod models;
-mod repository;
-
 use actix_web::{middleware::Logger, web, App, HttpServer};
 use dotenv::dotenv;
 use env_logger::fmt::Color;
-use handlers::{account_handlers, document_handlers, profile_handlers};
 use log;
-use repository::database::DatabaseRepository;
+use server::handlers::{account_handlers, document_handlers, profile_handlers};
+use server::repository::database::DatabaseRepository;
 use std::env;
 use std::io::Write;
 

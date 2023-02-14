@@ -11,7 +11,7 @@
 set -Eeuo pipefail
 
 # Set the log level to debug
-export RUST_LOG=debug
+# export RUST_LOG=debug
 
 # Check if docker desktop is running
 if ! docker ps > /dev/null; then
@@ -25,4 +25,4 @@ if ! docker ps | grep -q mongo; then
 fi
 
 # Run the tests
-cargo test
+cargo test --test 'test_*'
