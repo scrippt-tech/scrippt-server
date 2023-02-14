@@ -27,6 +27,3 @@ rand = "0.8.3"
 version = "2.3.1"
 default-features = false
 features = ["async-std-runtime"] 
-
-[lib]
-doctest = false
