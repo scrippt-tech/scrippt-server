@@ -216,10 +216,16 @@ pub async fn delete_account(
         return HttpResponse::BadRequest().body("Invalid id");
     }
 
-    let acc = db.delete_account(&id).await;
+    let update_result = db.delete_account(&id).await;
 
-    match acc {
-        Ok(acc) => HttpResponse::Ok().json(acc),
+    match update_result {
+        Ok(acc) => {
+            if acc.deleted_count == 1 {
+                HttpResponse::NoContent().finish()
+            } else {
+                HttpResponse::BadRequest().body("Account not found")
+            }
+        }
         Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
     }
 }
