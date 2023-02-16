@@ -150,8 +150,8 @@ pub async fn get_account_by_id(
 /// ### Request body:
 /// ```
 /// {
-///   "name" | "email" | "password": String,
-///   ...
+///   "path": "name" | "email" | "password",
+///   "value": String
 /// }
 /// ```
 ///
@@ -235,12 +235,12 @@ pub async fn delete_account(
 pub async fn login_account(db: Data<DatabaseRepository>, cred: Json<Credentials>) -> HttpResponse {
     let exists = db.get_account_by_email(&cred.email).await;
     if exists.is_err() {
-        return HttpResponse::BadRequest().body("Account does not exist");
+        return HttpResponse::Unauthorized().body("Account does not exist");
     }
 
     let account = exists.unwrap();
     if utils::verify_hash(&cred.password, &account.password) == false {
-        return HttpResponse::BadRequest().body("Invalid password");
+        return HttpResponse::Unauthorized().body("Invalid password");
     }
 
     let id = account.id.unwrap().to_hex();

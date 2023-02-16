@@ -5,6 +5,7 @@ use actix_service::ServiceFactory;
 use actix_web::{
     dev::{ServiceRequest, ServiceResponse},
     error::Error,
+    middleware,
     // middleware::Logger,
     test,
     web,
@@ -29,13 +30,11 @@ async fn get_app() -> App<
     >,
 > {
     // set up the logger to debug
-    // env::set_var("RUST_LOG", "debug");
     INIT.call_once(|| env_logger::init());
-    std::env::set_var("JWT_SECRET", "secret");
     let db = DatabaseRepository::new("mongodb://localhost:27017", "localhost".to_string()).await;
     let _ = db.drop_database().await;
     App::new()
-        // .wrap(Logger::default())
+        .wrap(middleware::Logger::default())
         .app_data(web::Data::new(db))
         .service(create_account)
         .service(get_account_by_id)
@@ -129,13 +128,46 @@ async fn test_get_account_unauthorized() {
     let body = test::read_body(resp).await;
     let json = serde_json::from_slice::<serde_json::Value>(&body).unwrap();
     let id = json["id"].as_str().unwrap();
+    let token = json["token"].as_str().unwrap();
 
     let req = test::TestRequest::get()
         .uri(&format!("/{}", id))
+        .insert_header((header::AUTHORIZATION, format!("Bearer {}wrong", token)))
         .to_request();
     let resp = test::call_service(&server, req).await;
 
     assert_eq!(resp.status(), 401);
+}
+
+#[actix_rt::test]
+async fn test_update_account() {
+    let app = get_app().await;
+    let server = test::init_service(app).await;
+    let req = create_john_doe();
+    let resp = test::call_service(&server, req).await;
+    assert_eq!(resp.status(), 201);
+
+    let body = test::read_body(resp).await;
+    let json = serde_json::from_slice::<serde_json::Value>(&body).unwrap();
+    let id = json["id"].as_str().unwrap();
+    let token = json["token"].as_str().unwrap();
+
+    let req = test::TestRequest::patch()
+        .uri(&format!("/{}", id))
+        .insert_header((header::AUTHORIZATION, format!("Bearer {}", token)))
+        .set_json(serde_json::json!({
+            "path": "name",
+            "value": "Jane Doe"
+        }))
+        .to_request();
+
+    let resp = test::call_service(&server, req).await;
+    assert_eq!(resp.status(), 200);
+
+    let body = test::read_body(resp).await;
+    let json = serde_json::from_slice::<serde_json::Value>(&body).unwrap();
+    assert_eq!(json["name"], "Jane Doe");
+    assert_eq!(json["email"], "johndoe@email.com");
 }
 
 #[actix_rt::test]
@@ -183,4 +215,33 @@ async fn test_account_login() {
     let token = json["token"].as_str().unwrap();
     let jwt = decode_jwt(token.to_string(), "secret").unwrap();
     assert_eq!(jwt.email, "johndoe@email.com");
+}
+
+#[actix_rt::test]
+async fn test_account_login_invalid_credentials() {
+    let app = get_app().await;
+    let server = test::init_service(app).await;
+    let req = create_john_doe();
+    let resp = test::call_service(&server, req).await;
+    assert_eq!(resp.status(), 201);
+
+    let req = test::TestRequest::post()
+        .uri("/login")
+        .set_json(serde_json::json!({
+            "email": "johndoe@email.com",
+            "password": "badpassword"
+        }))
+        .to_request();
+    let resp = test::call_service(&server, req).await;
+    assert_eq!(resp.status(), 401);
+
+    let req = test::TestRequest::post()
+        .uri("/login")
+        .set_json(serde_json::json!({
+            "email": "wrong@email.com",
+            "password": "password"
+        }))
+        .to_request();
+    let resp = test::call_service(&server, req).await;
+    assert_eq!(resp.status(), 401);
 }

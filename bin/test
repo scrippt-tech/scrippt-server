@@ -24,5 +24,19 @@ if ! docker ps | grep -q mongo; then
     docker run -d -p 27017:27017 --name test-scrippt mongo:latest
 fi
 
+# Set environment variables
+export JWT_SECRET="secret"
+
 # Run the tests
-cargo test --test 'test_*'
+# if LOG_LEVEL is set, use it
+if [ -n "${LOG_LEVEL:-}" ]; then
+    RUST_LOG=$LOG_LEVEL cargo test --test 'test_*'
+# if LOG_LEVEL is not set, use info
+elif [ -z "${LOG_LEVEL:-}" ]; then
+    cargo test --test 'test_*'
+# if LOG_LEVEL is invalid, exit with an error
+else
+    echo "Invalid log level"
+    echo "Usage: test [info|debug|warn|error]"
+    exit 1
+fi
