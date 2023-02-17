@@ -8,7 +8,6 @@ use mongodb::{
     Client, Collection,
 };
 use serde_json;
-use std::env;
 
 use crate::models::document::DocumentInfo;
 use crate::models::profile::Profile;
@@ -20,17 +19,8 @@ pub struct DatabaseRepository {
 
 impl DatabaseRepository {
     /// Initialize the repository with a MongoDB connection
-    pub async fn new() -> Self {
-        let user = env::var("MONGO_USER").expect("MONGO_USER must be set");
-        let psw = env::var("MONGO_PASSWORD").expect("MONGO_PASSWORD must be set");
-        let host = env::var("MONGO_HOST").expect("MONGO_HOST must be set");
-
-        let uri = format!(
-            "mongodb+srv://{}:{}@{}/?retryWrites=true&w=majority",
-            user.as_str(),
-            psw.as_str(),
-            host.as_str()
-        );
+    pub async fn new(uri: &str, host: String) -> Self {
+        let uri = uri.to_string();
         let client_options = ClientOptions::parse(uri)
             .await
             .ok()
@@ -346,6 +336,20 @@ impl DatabaseRepository {
             },
             Err(e) => {
                 log::error!("Failed to add document for account {}", id);
+                Err(Error::DeserializationError {
+                    message: e.to_string(),
+                })
+            }
+        }
+    }
+
+    #[allow(dead_code)]
+    pub async fn drop_database(&self) -> Result<(), Error> {
+        let result = self.user_collection.drop(None).await;
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => {
+                log::error!("Failed to drop database");
                 Err(Error::DeserializationError {
                     message: e.to_string(),
                 })

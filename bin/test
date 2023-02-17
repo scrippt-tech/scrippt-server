@@ -1,0 +1,47 @@
+#!/bin/bash
+#
+# Testing script for the API server
+# 
+# Initializes a temporary docker MongoDB database and runs the API server tests
+# against it.
+#
+# Scrippt, Copyright (c) 2023
+
+# Stop on errors, print commands
+set -Eeuo pipefail
+
+# Set the log level to debug
+# export RUST_LOG=debug
+
+# Check if docker desktop is running
+if ! docker ps > /dev/null; then
+    echo "Docker Desktop is not running"
+    exit 1
+fi
+
+# Start a docker MongoDB database
+if ! docker ps | grep -q mongo; then
+    docker run -d -p 27017:27017 --name test-scrippt mongo:latest
+fi
+
+# Set environment variables
+export JWT_SECRET="secret"
+export APP_NAME="scrippt"
+export DOMAIN="localhost"
+
+# Use a single thread for testing to prevent race conditions
+export RUST_TEST_THREADS=1
+
+# Run the tests
+# if LOG_LEVEL is set, use it
+if [ -n "${LOG_LEVEL:-}" ]; then
+    RUST_LOG=$LOG_LEVEL cargo test --test 'test_*'
+# if LOG_LEVEL is not set, use info
+elif [ -z "${LOG_LEVEL:-}" ]; then
+    cargo test --test 'test_*'
+# if LOG_LEVEL is invalid, exit with an error
+else
+    echo "Invalid log level"
+    echo "Usage: test [info|debug|warn|error]"
+    exit 1
+fi

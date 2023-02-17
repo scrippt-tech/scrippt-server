@@ -57,11 +57,18 @@ pub struct Credentials {
 #[post("/create")]
 pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> HttpResponse {
     let exists = db.get_account_by_email(&acc.email).await;
-    if exists.is_ok() {
-        return HttpResponse::Conflict().body("Account already exists");
+    log::info!("Account exists: {:?}", exists);
+    match exists {
+        Ok(_) => return HttpResponse::Conflict().body("Account already exists"),
+        Err(_) => (),
     }
 
-    let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
+    match utils::validate_signup(&acc.email, &acc.password) {
+        Ok(_) => (),
+        Err(e) => return HttpResponse::BadRequest().json(e.to_string()),
+    };
+
+    let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set"); // set this to global variable
     let hash_password = utils::generate_hash(&acc.password);
 
     let empty_profile = Profile {
@@ -91,7 +98,9 @@ pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> Ht
         .as_object_id()
         .unwrap()
         .to_hex();
-    let token = encode_jwt(id.to_owned(), acc.email.to_owned(), &secret);
+    let domain = env::var("DOMAIN").expect("DOMAIN must be set");
+    let app_name = env::var("APP_NAME").expect("APP_NAME must be set");
+    let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
 
     let response = AuthResponse { id, token };
 
@@ -149,8 +158,8 @@ pub async fn get_account_by_id(
 /// ### Request body:
 /// ```
 /// {
-///   "name" | "email" | "password": String,
-///   ...
+///   "path": "name" | "email" | "password",
+///   "value": String
 /// }
 /// ```
 ///
@@ -215,10 +224,16 @@ pub async fn delete_account(
         return HttpResponse::BadRequest().body("Invalid id");
     }
 
-    let acc = db.delete_account(&id).await;
+    let update_result = db.delete_account(&id).await;
 
-    match acc {
-        Ok(acc) => HttpResponse::Ok().json(acc),
+    match update_result {
+        Ok(acc) => {
+            if acc.deleted_count == 1 {
+                HttpResponse::NoContent().finish()
+            } else {
+                HttpResponse::BadRequest().body("Account not found")
+            }
+        }
         Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
     }
 }
@@ -228,17 +243,19 @@ pub async fn delete_account(
 pub async fn login_account(db: Data<DatabaseRepository>, cred: Json<Credentials>) -> HttpResponse {
     let exists = db.get_account_by_email(&cred.email).await;
     if exists.is_err() {
-        return HttpResponse::BadRequest().body("Account does not exist");
+        return HttpResponse::Unauthorized().body("Account does not exist");
     }
 
     let account = exists.unwrap();
     if utils::verify_hash(&cred.password, &account.password) == false {
-        return HttpResponse::BadRequest().body("Invalid password");
+        return HttpResponse::Unauthorized().body("Invalid password");
     }
 
     let id = account.id.unwrap().to_hex();
     let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
-    let token = encode_jwt(id.to_owned(), cred.email.to_owned(), &secret);
+    let domain = env::var("DOMAIN").expect("DOMAIN must be set");
+    let app_name = env::var("APP_NAME").expect("APP_NAME must be set");
+    let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
 
     let response = AuthResponse { id, token };
 

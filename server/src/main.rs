@@ -1,14 +1,10 @@
-mod auth;
-mod handlers;
-mod models;
-mod repository;
-
 use actix_web::{middleware::Logger, web, App, HttpServer};
 use dotenv::dotenv;
 use env_logger::fmt::Color;
-use handlers::{account_handlers, document_handlers, profile_handlers};
 use log;
-use repository::database::DatabaseRepository;
+use server::handlers::account_handlers;
+use server::repository::database::DatabaseRepository;
+use std::env;
 use std::io::Write;
 
 #[actix_rt::main]
@@ -44,8 +40,18 @@ async fn main() -> std::io::Result<()> {
 
     log::info!("Starting server on port 8000...");
 
+    let user = env::var("MONGO_USER").expect("MONGO_USER must be set");
+    let psw = env::var("MONGO_PASSWORD").expect("MONGO_PASSWORD must be set");
+    let host = env::var("MONGO_HOST").expect("MONGO_HOST must be set");
+    let uri = format!(
+        "mongodb+srv://{}:{}@{}/?retryWrites=true&w=majority",
+        user.as_str(),
+        psw.as_str(),
+        host.as_str()
+    );
+
     // Database
-    let db = DatabaseRepository::new().await;
+    let db = DatabaseRepository::new(&uri, host).await;
     let data = web::Data::new(db);
 
     HttpServer::new(move || {
@@ -53,15 +59,15 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .app_data(data.clone())
             .service(
-                web::scope("/api/account")
+                web::scope("/account")
                     .service(account_handlers::get_account_by_id)
                     .service(account_handlers::create_account)
                     .service(account_handlers::update_account)
                     .service(account_handlers::delete_account)
                     .service(account_handlers::login_account),
             )
-            .service(web::scope("/api/profile").service(profile_handlers::change_profile))
-            .service(web::scope("/api/document").service(document_handlers::document))
+        // .service(web::scope("/api/profile").service(profile_handlers::change_profile))
+        // .service(web::scope("/api/document").service(document_handlers::document))
     })
     .bind("127.0.0.1:8000")?
     .run()
