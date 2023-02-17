@@ -54,6 +54,10 @@ fn create_john_doe() -> actix_http::Request {
         .to_request()
 }
 
+/// This test creates a user and asserts that the response is a 201
+/// and that the response body contains a valid jwt.
+///
+/// It also asserts that the jwt contains the correct user id and email
 #[actix_rt::test]
 async fn test_create_account() {
     let app = get_app().await;
@@ -75,6 +79,9 @@ async fn test_create_account() {
     assert_eq!(jwt.email, "johndoe@email.com");
 }
 
+/// This test creates an account, then tries to create another account with the same email
+///
+/// It should fail with a 409 Conflict
 #[actix_rt::test]
 async fn test_create_account_duplicate() {
     let app = get_app().await;
@@ -88,6 +95,36 @@ async fn test_create_account_duplicate() {
 
     let resp = test::call_service(&server, req_dup).await;
     assert_eq!(resp.status(), 409);
+}
+
+#[actix_rt::test]
+async fn test_create_account_bad_request() {
+    let app = get_app().await;
+    let server = test::init_service(app).await;
+    // create an account with a missing field
+    let req = test::TestRequest::post()
+        .uri("/create")
+        .set_json(serde_json::json!({
+            "name": "John Doe",
+            "email": "johndoe@gmail.com"
+        }))
+        .to_request();
+
+    let resp = test::call_service(&server, req).await;
+    assert_eq!(resp.status(), 400);
+
+    // create an account with an invalid email
+    let req = test::TestRequest::post()
+        .uri("/create")
+        .set_json(serde_json::json!({
+            "name": "John Doe",
+            "email": "bad-email",
+            "password": "password"
+        }))
+        .to_request();
+
+    let resp = test::call_service(&server, req).await;
+    assert_eq!(resp.status(), 400);
 }
 
 #[actix_rt::test]

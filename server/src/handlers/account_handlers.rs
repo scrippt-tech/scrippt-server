@@ -62,7 +62,12 @@ pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> Ht
         return HttpResponse::Conflict().body("Account already exists");
     }
 
-    let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
+    match utils::validate_signup(&acc.email, &acc.password) {
+        Ok(_) => (),
+        Err(e) => return HttpResponse::BadRequest().json(e.to_string()),
+    };
+
+    let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set"); // set this to global variable
     let hash_password = utils::generate_hash(&acc.password);
 
     let empty_profile = Profile {
