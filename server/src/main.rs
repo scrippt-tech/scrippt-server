@@ -69,7 +69,7 @@ async fn main() -> std::io::Result<()> {
         // .service(web::scope("/api/profile").service(profile_handlers::change_profile))
         // .service(web::scope("/api/document").service(document_handlers::document))
     })
-    .bind("127.0.0.1:8000")?
+    .bind("0.0.0.0:8000")?
     .run()
     .await
 }
