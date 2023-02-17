@@ -2,7 +2,7 @@ use actix_web::{middleware::Logger, web, App, HttpServer};
 use dotenv::dotenv;
 use env_logger::fmt::Color;
 use log;
-use server::handlers::{account_handlers, document_handlers, profile_handlers};
+use server::handlers::account_handlers;
 use server::repository::database::DatabaseRepository;
 use std::env;
 use std::io::Write;
@@ -59,15 +59,15 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .app_data(data.clone())
             .service(
-                web::scope("/api/account")
+                web::scope("/account")
                     .service(account_handlers::get_account_by_id)
                     .service(account_handlers::create_account)
                     .service(account_handlers::update_account)
                     .service(account_handlers::delete_account)
                     .service(account_handlers::login_account),
             )
-            .service(web::scope("/api/profile").service(profile_handlers::change_profile))
-            .service(web::scope("/api/document").service(document_handlers::document))
+        // .service(web::scope("/api/profile").service(profile_handlers::change_profile))
+        // .service(web::scope("/api/document").service(document_handlers::document))
     })
     .bind("127.0.0.1:8000")?
     .run()

@@ -97,6 +97,9 @@ async fn test_create_account_duplicate() {
     assert_eq!(resp.status(), 409);
 }
 
+/// This test creates an account with a missing field, an invalid email, and an invalid password
+///
+/// It should fail with a 400 Bad Request
 #[actix_rt::test]
 async fn test_create_account_bad_request() {
     let app = get_app().await;
@@ -125,8 +128,25 @@ async fn test_create_account_bad_request() {
 
     let resp = test::call_service(&server, req).await;
     assert_eq!(resp.status(), 400);
+
+    // create an account with an invalid password
+    let req = test::TestRequest::post()
+        .uri("/create")
+        .set_json(serde_json::json!({
+            "name": "John Doe",
+            "email": "johnn@email.com",
+            "password": "bad"
+        }))
+        .to_request();
+
+    let resp = test::call_service(&server, req).await;
+    assert_eq!(resp.status(), 400);
 }
 
+/// This test creates an account, then tries to get the account by id
+///
+/// It should succeed with a 200 \
+/// It verifies that the response body contains the correct user id and email
 #[actix_rt::test]
 async fn test_get_account_by_id() {
     let app = get_app().await;
@@ -154,6 +174,9 @@ async fn test_get_account_by_id() {
     assert_eq!(json["email"], "johndoe@email.com");
 }
 
+/// This test creates an account, then tries to get the account by id with an invalid token
+///
+/// It should return a 401 Unauthorized
 #[actix_rt::test]
 async fn test_get_account_unauthorized() {
     let app = get_app().await;
@@ -176,6 +199,19 @@ async fn test_get_account_unauthorized() {
     assert_eq!(resp.status(), 401);
 }
 
+/// This test creates an account, then tries to update the account
+///
+/// It updates the name, then verifies that the name was updated \
+/// It verifies that the response body contains the correct name and email
+///
+/// It updates the email, then verifies that the email was updated \
+/// It verifies that the response body contains the correct name and email \
+/// It verifies that the JWT token contains the correct updated email
+///
+/// It updates the password, then verifies that the password was updated \
+/// It verifies that the response body contains the correct name and email \
+/// It tries to login with the old password, which should fail \
+/// It tries to login with the new password, which should succeed
 #[actix_rt::test]
 async fn test_update_account() {
     let app = get_app().await;
@@ -189,6 +225,7 @@ async fn test_update_account() {
     let id = json["id"].as_str().unwrap();
     let token = json["token"].as_str().unwrap();
 
+    // Update the name
     let req = test::TestRequest::patch()
         .uri(&format!("/{}", id))
         .insert_header((header::AUTHORIZATION, format!("Bearer {}", token)))
@@ -205,6 +242,65 @@ async fn test_update_account() {
     let json = serde_json::from_slice::<serde_json::Value>(&body).unwrap();
     assert_eq!(json["name"], "Jane Doe");
     assert_eq!(json["email"], "johndoe@email.com");
+
+    // Update the email
+    let req = test::TestRequest::patch()
+        .uri(&format!("/{}", id))
+        .insert_header((header::AUTHORIZATION, format!("Bearer {}", token)))
+        .set_json(serde_json::json!({
+            "path": "email",
+            "value": "janedoe@email.com"
+        }))
+        .to_request();
+
+    let resp = test::call_service(&server, req).await;
+    assert_eq!(resp.status(), 200);
+
+    let body = test::read_body(resp).await;
+    let json = serde_json::from_slice::<serde_json::Value>(&body).unwrap();
+    assert_eq!(json["name"], "Jane Doe");
+    assert_eq!(json["email"], "janedoe@email.com");
+
+    // Update the password
+    let req = test::TestRequest::patch()
+        .uri(&format!("/{}", id))
+        .insert_header((header::AUTHORIZATION, format!("Bearer {}", token)))
+        .set_json(serde_json::json!({
+            "path": "password",
+            "value": "new-password"
+        }))
+        .to_request();
+
+    let resp = test::call_service(&server, req).await;
+    assert_eq!(resp.status(), 200);
+
+    let body = test::read_body(resp).await;
+    let json = serde_json::from_slice::<serde_json::Value>(&body).unwrap();
+    assert_eq!(json["name"], "Jane Doe");
+    assert_eq!(json["email"], "janedoe@email.com");
+
+    // Try to login with the old password
+    let req = test::TestRequest::post()
+        .uri("/login")
+        .set_json(serde_json::json!({
+            "email": "janedoe@email.com",
+            "password": "password"
+        }))
+        .to_request();
+    let resp = test::call_service(&server, req).await;
+    assert_eq!(resp.status(), 401);
+
+    // Login with the new password
+    let req = test::TestRequest::post()
+        .uri("/login")
+        .set_json(serde_json::json!({
+            "email": "janedoe@email.com",
+            "password": "new-password"
+        }))
+        .to_request();
+
+    let resp = test::call_service(&server, req).await;
+    assert_eq!(resp.status(), 200);
 }
 
 #[actix_rt::test]
