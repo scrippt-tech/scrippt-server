@@ -97,7 +97,9 @@ pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> Ht
         .as_object_id()
         .unwrap()
         .to_hex();
-    let token = encode_jwt(id.to_owned(), acc.email.to_owned(), &secret);
+    let domain = env::var("DOMAIN").expect("DOMAIN must be set");
+    let app_name = env::var("APP_NAME").expect("APP_NAME must be set");
+    let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
 
     let response = AuthResponse { id, token };
 
@@ -250,7 +252,9 @@ pub async fn login_account(db: Data<DatabaseRepository>, cred: Json<Credentials>
 
     let id = account.id.unwrap().to_hex();
     let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
-    let token = encode_jwt(id.to_owned(), cred.email.to_owned(), &secret);
+    let domain = env::var("DOMAIN").expect("DOMAIN must be set");
+    let app_name = env::var("APP_NAME").expect("APP_NAME must be set");
+    let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
 
     let response = AuthResponse { id, token };
 

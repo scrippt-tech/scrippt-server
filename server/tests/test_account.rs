@@ -15,6 +15,8 @@ use env_logger;
 use server::handlers::account_handlers::*;
 use server::repository::database::DatabaseRepository;
 // use std::env;
+use chrono;
+use more_asserts::*;
 use server::auth::jwt::decode_jwt;
 use std::sync::Once;
 
@@ -43,12 +45,12 @@ async fn get_app() -> App<
         .service(login_account)
 }
 
-fn create_john_doe() -> actix_http::Request {
+fn create_some_account(name: String, email: String) -> actix_http::Request {
     test::TestRequest::post()
         .uri("/create")
         .set_json(serde_json::json!({
-            "name": "John Doe",
-            "email": "johndoe@email.com",
+            "name": name,
+            "email": email,
             "password": "password"
         }))
         .to_request()
@@ -62,7 +64,7 @@ fn create_john_doe() -> actix_http::Request {
 async fn test_create_account() {
     let app = get_app().await;
     let app = test::init_service(app).await;
-    let req = create_john_doe();
+    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string());
     let resp = test::call_service(&app, req).await;
     // assert that the response is a 201
     assert_eq!(resp.status(), 201);
@@ -75,8 +77,13 @@ async fn test_create_account() {
 
     // assert that the token is a valid jwt
     let jwt = decode_jwt(token.to_string(), "secret").unwrap();
+    assert_eq!(jwt.iss, std::env::var("APP_NAME").unwrap());
     assert_eq!(jwt.sub, id);
-    assert_eq!(jwt.email, "johndoe@email.com");
+    assert_eq!(jwt.aud, std::env::var("DOMAIN").unwrap());
+    assert_le!(jwt.iat, chrono::Utc::now().timestamp() as usize);
+    assert_ge!(jwt.exp, chrono::Utc::now().timestamp() as usize);
+    assert_le!(jwt.nbf, chrono::Utc::now().timestamp() as usize);
+    assert_eq!(jwt.jti.len(), 36);
 }
 
 /// This test creates an account, then tries to create another account with the same email
@@ -87,8 +94,8 @@ async fn test_create_account_duplicate() {
     let app = get_app().await;
     let server = test::init_service(app).await;
     // create two duplicate accounts
-    let req = create_john_doe();
-    let req_dup = create_john_doe();
+    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string());
+    let req_dup = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string());
 
     let resp = test::call_service(&server, req).await;
     assert_eq!(resp.status(), 201);
@@ -151,7 +158,7 @@ async fn test_create_account_bad_request() {
 async fn test_get_account_by_id() {
     let app = get_app().await;
     let server = test::init_service(app).await;
-    let req = create_john_doe();
+    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string());
     let resp = test::call_service(&server, req).await;
     assert_eq!(resp.status(), 201);
 
@@ -181,7 +188,7 @@ async fn test_get_account_by_id() {
 async fn test_get_account_unauthorized() {
     let app = get_app().await;
     let server = test::init_service(app).await;
-    let req = create_john_doe();
+    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string());
     let resp = test::call_service(&server, req).await;
     assert_eq!(resp.status(), 201);
 
@@ -199,24 +206,56 @@ async fn test_get_account_unauthorized() {
     assert_eq!(resp.status(), 401);
 }
 
+/// This test creates two accounts, account A and account B.
+/// It tries to get account A's information with account B's token
+/// It should fail with a 401 Forbidden
+#[actix_rt::test]
+async fn test_get_account_forbidden() {
+    let app = get_app().await;
+    let server = test::init_service(app).await;
+    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string());
+    let resp = test::call_service(&server, req).await;
+    assert_eq!(resp.status(), 201);
+
+    let body = test::read_body(resp).await;
+    let json = serde_json::from_slice::<serde_json::Value>(&body).unwrap();
+    let token = json["token"].as_str().unwrap();
+
+    let req = create_some_account("Jane Doe".to_string(), "janedoe@email.com".to_string());
+    let resp = test::call_service(&server, req).await;
+    assert_eq!(resp.status(), 201);
+
+    let body = test::read_body(resp).await;
+    let json = serde_json::from_slice::<serde_json::Value>(&body).unwrap();
+    let id = json["id"].as_str().unwrap();
+
+    let req = test::TestRequest::get()
+        .uri(&format!("/{}", id))
+        .insert_header((header::AUTHORIZATION, format!("Bearer {}", token)))
+        .to_request();
+    let resp = test::call_service(&server, req).await;
+
+    assert_eq!(resp.status(), 401);
+}
+
 /// This test creates an account, then tries to update the account
 ///
-/// It updates the name, then verifies that the name was updated \
+/// It updates the name, then verifies that the name was updated.
 /// It verifies that the response body contains the correct name and email
 ///
-/// It updates the email, then verifies that the email was updated \
-/// It verifies that the response body contains the correct name and email \
+/// It updates the email, then verifies that the email was updated.
+/// It verifies that the response body contains the correct name and email.
 /// It verifies that the JWT token contains the correct updated email
 ///
-/// It updates the password, then verifies that the password was updated \
-/// It verifies that the response body contains the correct name and email \
-/// It tries to login with the old password, which should fail \
+/// It updates the password, then verifies that the password was updated.
+/// It verifies that the response body contains the correct name and email.
+/// It tries to login with the old password, which should fail.
 /// It tries to login with the new password, which should succeed
 #[actix_rt::test]
 async fn test_update_account() {
     let app = get_app().await;
     let server = test::init_service(app).await;
-    let req = create_john_doe();
+    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string());
     let resp = test::call_service(&server, req).await;
     assert_eq!(resp.status(), 201);
 
@@ -307,7 +346,7 @@ async fn test_update_account() {
 async fn test_delete_account() {
     let app = get_app().await;
     let server = test::init_service(app).await;
-    let req = create_john_doe();
+    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string());
     let resp = test::call_service(&server, req).await;
     assert_eq!(resp.status(), 201);
 
@@ -329,7 +368,7 @@ async fn test_delete_account() {
 async fn test_account_login() {
     let app = get_app().await;
     let server = test::init_service(app).await;
-    let req = create_john_doe();
+    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string());
     let resp = test::call_service(&server, req).await;
     assert_eq!(resp.status(), 201);
 
@@ -345,16 +384,23 @@ async fn test_account_login() {
 
     let body = test::read_body(resp).await;
     let json = serde_json::from_slice::<serde_json::Value>(&body).unwrap();
+    let id = json["id"].as_str().unwrap();
     let token = json["token"].as_str().unwrap();
     let jwt = decode_jwt(token.to_string(), "secret").unwrap();
-    assert_eq!(jwt.email, "johndoe@email.com");
+    assert_eq!(jwt.iss, std::env::var("APP_NAME").unwrap());
+    assert_eq!(jwt.sub, id);
+    assert_eq!(jwt.aud, std::env::var("DOMAIN").unwrap());
+    assert_le!(jwt.iat, chrono::Utc::now().timestamp() as usize);
+    assert_ge!(jwt.exp, chrono::Utc::now().timestamp() as usize);
+    assert_le!(jwt.nbf, chrono::Utc::now().timestamp() as usize);
+    assert_eq!(jwt.jti.len(), 36);
 }
 
 #[actix_rt::test]
 async fn test_account_login_invalid_credentials() {
     let app = get_app().await;
     let server = test::init_service(app).await;
-    let req = create_john_doe();
+    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string());
     let resp = test::call_service(&server, req).await;
     assert_eq!(resp.status(), 201);
 
