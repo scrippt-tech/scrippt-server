@@ -57,9 +57,10 @@ pub struct Credentials {
 #[post("/create")]
 pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> HttpResponse {
     let exists = db.get_account_by_email(&acc.email).await;
-
-    if exists.is_ok() {
-        return HttpResponse::Conflict().body("Account already exists");
+    log::info!("Account exists: {:?}", exists);
+    match exists {
+        Ok(_) => return HttpResponse::Conflict().body("Account already exists"),
+        Err(_) => (),
     }
 
     match utils::validate_signup(&acc.email, &acc.password) {

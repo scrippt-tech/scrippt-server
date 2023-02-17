@@ -1,5 +1,9 @@
 use crate::auth::jwt::decode_jwt;
-use actix_web::{dev, error::ErrorUnauthorized, Error, FromRequest, HttpRequest};
+use actix_web::{
+    dev,
+    error::{ErrorForbidden, ErrorUnauthorized},
+    Error, FromRequest, HttpRequest,
+};
 use futures::future::{err, ok, Ready};
 use std::env;
 
@@ -24,7 +28,7 @@ impl FromRequest for AuthorizationService {
                 match decode_jwt(token.to_string(), &key) {
                     Ok(claims) => match claims.sub == id {
                         true => ok(AuthorizationService),
-                        false => err(ErrorUnauthorized("invalid token")),
+                        false => err(ErrorForbidden("invalid token")),
                     },
                     Err(_e) => err(ErrorUnauthorized("invalid token")),
                 }

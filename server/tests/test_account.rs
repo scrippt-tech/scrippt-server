@@ -208,7 +208,7 @@ async fn test_get_account_unauthorized() {
 
 /// This test creates two accounts, account A and account B.
 /// It tries to get account A's information with account B's token
-/// It should fail with a 401 Forbidden
+/// It should fail with a 403 Forbidden
 #[actix_rt::test]
 async fn test_get_account_forbidden() {
     let app = get_app().await;
@@ -235,7 +235,7 @@ async fn test_get_account_forbidden() {
         .to_request();
     let resp = test::call_service(&server, req).await;
 
-    assert_eq!(resp.status(), 401);
+    assert_eq!(resp.status(), 403);
 }
 
 /// This test creates an account, then tries to update the account
