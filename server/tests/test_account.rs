@@ -342,6 +342,9 @@ async fn test_update_account() {
     assert_eq!(resp.status(), 200);
 }
 
+/// This test creates an account, then tries to delete the account
+///
+/// It verifies that the response is 204 No Content
 #[actix_rt::test]
 async fn test_delete_account() {
     let app = get_app().await;
@@ -364,6 +367,11 @@ async fn test_delete_account() {
     assert_eq!(resp.status(), 204);
 }
 
+/// This test creates an account, then tries to login with the account
+///
+/// It verifies that the response is 200 OK
+/// It verifies that the response body contains the account id and token
+/// It verifies that the token is valid
 #[actix_rt::test]
 async fn test_account_login() {
     let app = get_app().await;
@@ -396,6 +404,10 @@ async fn test_account_login() {
     assert_eq!(jwt.jti.len(), 36);
 }
 
+/// This test creates an account, then tries to login with the account
+/// using invalid credentials
+///
+/// It verifies that the response is 401 Unauthorized
 #[actix_rt::test]
 async fn test_account_login_invalid_credentials() {
     let app = get_app().await;
