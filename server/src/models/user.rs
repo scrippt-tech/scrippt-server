@@ -25,7 +25,11 @@ pub struct AccountPatch {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
+    pub iss: String,
     pub sub: String,
-    pub email: String,
+    pub aud: String,
     pub exp: usize,
+    pub nbf: usize,
+    pub iat: usize,
+    pub jti: String,
 }

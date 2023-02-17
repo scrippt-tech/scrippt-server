@@ -1,10 +1,15 @@
 use crate::models::user::Claims;
+use bson::Uuid;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 
-pub fn encode_jwt(id: String, email: String, secret: &str) -> String {
+pub fn encode_jwt(iss: String, sub: String, aud: String, secret: &str) -> String {
     let my_claims = Claims {
-        sub: id,
-        email,
+        iss,
+        sub,
+        aud,
+        iat: chrono::Utc::now().timestamp() as usize,
+        nbf: chrono::Utc::now().timestamp() as usize,
+        jti: Uuid::new().to_string(),
         exp: (chrono::Utc::now() + chrono::Duration::hours(24)).timestamp() as usize,
     };
 
