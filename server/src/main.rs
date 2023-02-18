@@ -66,6 +66,8 @@ async fn main() -> std::io::Result<()> {
                     .service(account_handlers::delete_account)
                     .service(account_handlers::login_account),
             )
+            // health check endpoint returns 200 OK
+            .route("/health", web::get().to(|| async { "OK" }))
         // .service(web::scope("/api/profile").service(profile_handlers::change_profile))
         // .service(web::scope("/api/document").service(document_handlers::document))
     })
