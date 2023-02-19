@@ -1,6 +1,6 @@
 use actix_web::{
     delete, get, patch, post,
-    web::{Data, Json, Path},
+    web::{Data, Json},
     HttpResponse,
 };
 use serde::{Deserialize, Serialize};
@@ -122,13 +122,12 @@ pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> Ht
 ///   "profile": Object
 /// }
 /// ```
-#[get("/{id}")]
+#[get("")]
 pub async fn get_account_by_id(
     db: Data<DatabaseRepository>,
-    path: Path<String>,
-    _auth: AuthorizationService,
+    auth: AuthorizationService,
 ) -> HttpResponse {
-    let id = path.into_inner();
+    let id = auth.id;
     if id.is_empty() {
         return HttpResponse::BadRequest().body("Invalid id");
     }
@@ -172,14 +171,13 @@ pub async fn get_account_by_id(
 ///    "email": String,
 /// }
 /// ```
-#[patch("/{id}")]
+#[patch("")]
 pub async fn update_account(
     db: Data<DatabaseRepository>,
-    path: Path<String>,
     mut req: Json<AccountPatch>,
-    _auth: AuthorizationService,
+    auth: AuthorizationService,
 ) -> HttpResponse {
-    let id = path.into_inner();
+    let id = auth.id;
     if id.is_empty() {
         return HttpResponse::BadRequest().body("Invalid id");
     }
@@ -213,13 +211,12 @@ pub async fn update_account(
     }
 }
 
-#[delete("/{id}")]
+#[delete("")]
 pub async fn delete_account(
     db: Data<DatabaseRepository>,
-    path: Path<String>,
-    _auth: AuthorizationService,
+    auth: AuthorizationService,
 ) -> HttpResponse {
-    let id = path.into_inner();
+    let id = auth.id;
     if id.is_empty() {
         return HttpResponse::BadRequest().body("Invalid id");
     }

@@ -36,18 +36,22 @@ async fn get_app() -> App<
     let db = DatabaseRepository::new("mongodb://localhost:27017", "localhost".to_string()).await;
     let _ = db.drop_database().await;
     App::new()
+        .wrap(middleware::NormalizePath::trim())
         .wrap(middleware::Logger::default())
         .app_data(web::Data::new(db))
-        .service(create_account)
-        .service(get_account_by_id)
-        .service(update_account)
-        .service(delete_account)
-        .service(login_account)
+        .service(
+            web::scope("/account")
+                .service(create_account)
+                .service(get_account_by_id)
+                .service(update_account)
+                .service(delete_account)
+                .service(login_account),
+        )
 }
 
 fn create_some_account(name: String, email: String) -> actix_http::Request {
     test::TestRequest::post()
-        .uri("/create")
+        .uri("/account/create/")
         .set_json(serde_json::json!({
             "name": name,
             "email": email,
@@ -113,7 +117,7 @@ async fn test_create_account_bad_request() {
     let server = test::init_service(app).await;
     // create an account with a missing field
     let req = test::TestRequest::post()
-        .uri("/create")
+        .uri("/account/create/")
         .set_json(serde_json::json!({
             "name": "John Doe",
             "email": "johndoe@gmail.com"
@@ -125,7 +129,7 @@ async fn test_create_account_bad_request() {
 
     // create an account with an invalid email
     let req = test::TestRequest::post()
-        .uri("/create")
+        .uri("/account/create/")
         .set_json(serde_json::json!({
             "name": "John Doe",
             "email": "bad-email",
@@ -138,7 +142,7 @@ async fn test_create_account_bad_request() {
 
     // create an account with an invalid password
     let req = test::TestRequest::post()
-        .uri("/create")
+        .uri("/account/create/")
         .set_json(serde_json::json!({
             "name": "John Doe",
             "email": "johnn@email.com",
@@ -164,11 +168,10 @@ async fn test_get_account_by_id() {
 
     let body = test::read_body(resp).await;
     let json = serde_json::from_slice::<serde_json::Value>(&body).unwrap();
-    let id = json["id"].as_str().unwrap();
     let token = json["token"].as_str().unwrap();
 
     let req = test::TestRequest::get()
-        .uri(&format!("/{}", id))
+        .uri("/account/")
         .insert_header((header::AUTHORIZATION, format!("Bearer {}", token)))
         .to_request();
     let resp = test::call_service(&server, req).await;
@@ -181,9 +184,10 @@ async fn test_get_account_by_id() {
     assert_eq!(json["email"], "johndoe@email.com");
 }
 
-/// This test creates an account, then tries to get the account by id with an invalid token
+/// This test creates an account, then tries to get the account by id with invalid token credentials.
+/// It tests sending no token, an invalid token, a wrong token type, and no token type
 ///
-/// It should return a 401 Unauthorized
+/// It should return a 401 Unauthorized for each
 #[actix_rt::test]
 async fn test_get_account_unauthorized() {
     let app = get_app().await;
@@ -194,48 +198,40 @@ async fn test_get_account_unauthorized() {
 
     let body = test::read_body(resp).await;
     let json = serde_json::from_slice::<serde_json::Value>(&body).unwrap();
-    let id = json["id"].as_str().unwrap();
     let token = json["token"].as_str().unwrap();
 
+    // No token
+    let req = test::TestRequest::get().uri("/account/").to_request();
+    let resp = test::call_service(&server, req).await;
+
+    assert_eq!(resp.status(), 401);
+
+    // Invalid token
     let req = test::TestRequest::get()
-        .uri(&format!("/{}", id))
+        .uri("/account/")
         .insert_header((header::AUTHORIZATION, format!("Bearer {}wrong", token)))
         .to_request();
     let resp = test::call_service(&server, req).await;
 
     assert_eq!(resp.status(), 401);
-}
 
-/// This test creates two accounts, account A and account B.
-/// It tries to get account A's information with account B's token
-/// It should fail with a 403 Forbidden
-#[actix_rt::test]
-async fn test_get_account_forbidden() {
-    let app = get_app().await;
-    let server = test::init_service(app).await;
-    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string());
-    let resp = test::call_service(&server, req).await;
-    assert_eq!(resp.status(), 201);
-
-    let body = test::read_body(resp).await;
-    let json = serde_json::from_slice::<serde_json::Value>(&body).unwrap();
-    let token = json["token"].as_str().unwrap();
-
-    let req = create_some_account("Jane Doe".to_string(), "janedoe@email.com".to_string());
-    let resp = test::call_service(&server, req).await;
-    assert_eq!(resp.status(), 201);
-
-    let body = test::read_body(resp).await;
-    let json = serde_json::from_slice::<serde_json::Value>(&body).unwrap();
-    let id = json["id"].as_str().unwrap();
-
+    // Incorrect token type
     let req = test::TestRequest::get()
-        .uri(&format!("/{}", id))
-        .insert_header((header::AUTHORIZATION, format!("Bearer {}", token)))
+        .uri("/account/")
+        .insert_header((header::AUTHORIZATION, format!("Basic {}", token)))
         .to_request();
     let resp = test::call_service(&server, req).await;
 
-    assert_eq!(resp.status(), 403);
+    assert_eq!(resp.status(), 401);
+
+    // No token type
+    let req = test::TestRequest::get()
+        .uri("/account/")
+        .insert_header((header::AUTHORIZATION, format!("{}", token)))
+        .to_request();
+    let resp = test::call_service(&server, req).await;
+
+    assert_eq!(resp.status(), 401);
 }
 
 /// This test creates an account, then tries to update the account
@@ -261,12 +257,11 @@ async fn test_update_account() {
 
     let body = test::read_body(resp).await;
     let json = serde_json::from_slice::<serde_json::Value>(&body).unwrap();
-    let id = json["id"].as_str().unwrap();
     let token = json["token"].as_str().unwrap();
 
     // Update the name
     let req = test::TestRequest::patch()
-        .uri(&format!("/{}", id))
+        .uri("/account/")
         .insert_header((header::AUTHORIZATION, format!("Bearer {}", token)))
         .set_json(serde_json::json!({
             "path": "name",
@@ -284,7 +279,7 @@ async fn test_update_account() {
 
     // Update the email
     let req = test::TestRequest::patch()
-        .uri(&format!("/{}", id))
+        .uri("/account/")
         .insert_header((header::AUTHORIZATION, format!("Bearer {}", token)))
         .set_json(serde_json::json!({
             "path": "email",
@@ -302,7 +297,7 @@ async fn test_update_account() {
 
     // Update the password
     let req = test::TestRequest::patch()
-        .uri(&format!("/{}", id))
+        .uri("/account/")
         .insert_header((header::AUTHORIZATION, format!("Bearer {}", token)))
         .set_json(serde_json::json!({
             "path": "password",
@@ -320,7 +315,7 @@ async fn test_update_account() {
 
     // Try to login with the old password
     let req = test::TestRequest::post()
-        .uri("/login")
+        .uri("/account/login/")
         .set_json(serde_json::json!({
             "email": "janedoe@email.com",
             "password": "password"
@@ -331,7 +326,7 @@ async fn test_update_account() {
 
     // Login with the new password
     let req = test::TestRequest::post()
-        .uri("/login")
+        .uri("/account/login/")
         .set_json(serde_json::json!({
             "email": "janedoe@email.com",
             "password": "new-password"
@@ -355,11 +350,10 @@ async fn test_delete_account() {
 
     let body = test::read_body(resp).await;
     let json = serde_json::from_slice::<serde_json::Value>(&body).unwrap();
-    let id = json["id"].as_str().unwrap();
     let token = json["token"].as_str().unwrap();
 
     let req = test::TestRequest::delete()
-        .uri(&format!("/{}", id))
+        .uri("/account/")
         .insert_header((header::AUTHORIZATION, format!("Bearer {}", token)))
         .to_request();
     let resp = test::call_service(&server, req).await;
@@ -381,7 +375,7 @@ async fn test_account_login() {
     assert_eq!(resp.status(), 201);
 
     let req = test::TestRequest::post()
-        .uri("/login")
+        .uri("/account/login/")
         .set_json(serde_json::json!({
             "email": "johndoe@email.com",
             "password": "password"
@@ -394,7 +388,11 @@ async fn test_account_login() {
     let json = serde_json::from_slice::<serde_json::Value>(&body).unwrap();
     let id = json["id"].as_str().unwrap();
     let token = json["token"].as_str().unwrap();
-    let jwt = decode_jwt(token.to_string(), "secret").unwrap();
+    let jwt = decode_jwt(
+        token.to_string(),
+        &std::env::var("JWT_SECRET").expect("JWT secret must be set"),
+    )
+    .unwrap();
     assert_eq!(jwt.iss, std::env::var("APP_NAME").unwrap());
     assert_eq!(jwt.sub, id);
     assert_eq!(jwt.aud, std::env::var("DOMAIN").unwrap());
@@ -417,7 +415,7 @@ async fn test_account_login_invalid_credentials() {
     assert_eq!(resp.status(), 201);
 
     let req = test::TestRequest::post()
-        .uri("/login")
+        .uri("/account/login/")
         .set_json(serde_json::json!({
             "email": "johndoe@email.com",
             "password": "badpassword"
@@ -427,7 +425,7 @@ async fn test_account_login_invalid_credentials() {
     assert_eq!(resp.status(), 401);
 
     let req = test::TestRequest::post()
-        .uri("/login")
+        .uri("/account/login/")
         .set_json(serde_json::json!({
             "email": "wrong@email.com",
             "password": "password"

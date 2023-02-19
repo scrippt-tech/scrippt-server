@@ -1,4 +1,7 @@
-use actix_web::{middleware::Logger, web, App, HttpServer};
+use actix_web::{
+    middleware::{Logger, NormalizePath},
+    web, App, HttpServer,
+};
 use dotenv::dotenv;
 use env_logger::fmt::Color;
 use log;
@@ -57,6 +60,7 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
+            .wrap(NormalizePath::trim())
             .app_data(data.clone())
             .service(
                 web::scope("/account")
