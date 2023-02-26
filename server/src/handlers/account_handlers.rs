@@ -82,6 +82,8 @@ pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> Ht
         id: None,
         name: acc.name.to_owned(),
         email: acc.email.to_owned(),
+        external_id: None,
+        external_provider: None,
         password: hash_password.to_owned(),
         profile: Some(empty_profile),
         documents: Some(vec![]),
@@ -148,12 +150,7 @@ pub async fn get_account_by_id(
     }
 }
 
-/// API route to update a user's account. Request takes in a one or multiple of the following fields:
-///
-/// - name
-/// - email
-/// - password
-///
+/// API route to update a user's account.
 /// ### Request body:
 /// ```
 /// {
@@ -161,7 +158,6 @@ pub async fn get_account_by_id(
 ///   "value": String
 /// }
 /// ```
-///
 /// ### Response body (if successful):
 /// ```
 /// 200 OK

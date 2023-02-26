@@ -11,6 +11,8 @@ pub struct User {
     pub name: String,
     pub email: String,
     pub password: String,
+    pub external_id: Option<String>,
+    pub external_provider: Option<String>,
     pub profile: Option<Profile>,
     pub documents: Option<Vec<DocumentInfo>>,
     pub date_created: Option<i64>,

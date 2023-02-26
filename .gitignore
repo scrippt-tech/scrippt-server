@@ -1,4 +1,9 @@
+# macOS
+.DS_Store
+
+# Project
 /target
 .env
+
+# VSCode
 .vscode
-google_jwk.json
