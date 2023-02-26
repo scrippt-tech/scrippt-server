@@ -1,3 +1,4 @@
+use actix_redis::RedisActor;
 use actix_web::{
     middleware::{Logger, NormalizePath},
     web, App, HttpServer,
@@ -57,10 +58,15 @@ async fn main() -> std::io::Result<()> {
     let db = DatabaseRepository::new(&uri, host).await;
     let data = web::Data::new(db);
 
+    // Redis
+    let redis = RedisActor::start("127.0.0.1:6379");
+    let redis_data = web::Data::new(redis);
+
     HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
             .wrap(NormalizePath::trim())
+            .app_data(redis_data.clone())
             .app_data(data.clone())
             .service(
                 web::scope("/account")
