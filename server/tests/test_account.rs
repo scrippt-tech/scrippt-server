@@ -152,6 +152,18 @@ async fn test_create_account_bad_request() {
 
     let resp = test::call_service(&server, req).await;
     assert_eq!(resp.status(), 400);
+
+    // Create account with no name
+    let req = test::TestRequest::post()
+        .uri("/account/create/")
+        .set_json(serde_json::json!({
+            "email": "jane@email.com",
+            "password": "password"
+        }))
+        .to_request();
+
+    let resp = test::call_service(&server, req).await;
+    assert_eq!(resp.status(), 400);
 }
 
 /// This test creates an account, then tries to get the account by id

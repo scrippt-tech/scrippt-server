@@ -10,7 +10,7 @@ pub struct User {
     pub id: Option<ObjectId>,
     pub name: String,
     pub email: String,
-    pub password: String,
+    pub password: Option<String>,
     pub external_id: Option<String>,
     pub external_provider: Option<String>,
     pub profile: Option<Profile>,

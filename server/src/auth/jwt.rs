@@ -93,14 +93,14 @@ impl std::str::FromStr for GoogleJwkSet {
 /// ```
 pub async fn decode_google_token_id(token: &str) -> Result<GoogleAuthClaims, Error> {
     let client_id = std::env::var("GOOGLE_CLIENT_ID").unwrap();
-    let key_path = std::env::var("GOOGLE_KEY_PATH").unwrap();
+    let key_path = "server/keys/.jwk";
 
     // Retrieve JWKs from google_jwk.json if it exists and if the max_age JSON field is not greater than last modified.
     // Else retrieve JWKs from Google's JWK endpoint.
-    let jwk_set = if Path::new(key_path.as_str()).exists() {
-        let metadata = fs::metadata(&key_path).unwrap();
+    let jwk_set = if Path::new(key_path).exists() {
+        let metadata = fs::metadata(key_path).unwrap();
         let modified = metadata.modified().unwrap();
-        let jwk_set = fs::read_to_string(&key_path)
+        let jwk_set = fs::read_to_string(key_path)
             .unwrap()
             .parse::<GoogleJwkSet>()
             .unwrap();
@@ -111,11 +111,11 @@ pub async fn decode_google_token_id(token: &str) -> Result<GoogleAuthClaims, Err
         if modified.elapsed().unwrap().as_secs() < max_age {
             jwk_set
         } else {
-            let jwk_set = get_latest_keys(&key_path).await?;
+            let jwk_set = get_latest_keys(key_path).await?;
             jwk_set
         }
     } else {
-        let jwk_set = get_latest_keys(&key_path).await?;
+        let jwk_set = get_latest_keys(key_path).await?;
         jwk_set
     };
 

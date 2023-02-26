@@ -63,13 +63,21 @@ pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> Ht
         Err(_) => (),
     }
 
-    match utils::validate_signup(&acc.email, &acc.password) {
+    // TODO: Move this to a middleware
+    // Checks if the password is valid since it is optional in the User model
+    // and we don't want to store an empty password
+    // It is optional because we can create an account with an external provider
+    let password = match acc.password.as_ref() {
+        Some(p) => p,
+        None => return HttpResponse::BadRequest().body("Password is required"),
+    };
+    match utils::validate_signup(&acc.email, password) {
         Ok(_) => (),
         Err(e) => return HttpResponse::BadRequest().json(e.to_string()),
     };
 
     let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set"); // set this to global variable
-    let hash_password = utils::generate_hash(&acc.password);
+    let hash_password = utils::generate_hash(password);
 
     let empty_profile = Profile {
         education: vec![],
@@ -84,7 +92,7 @@ pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> Ht
         email: acc.email.to_owned(),
         external_id: None,
         external_provider: None,
-        password: hash_password.to_owned(),
+        password: Some(hash_password),
         profile: Some(empty_profile),
         documents: Some(vec![]),
         date_created: Some(chrono::Utc::now().timestamp()),
@@ -240,7 +248,7 @@ pub async fn login_account(db: Data<DatabaseRepository>, cred: Json<Credentials>
     }
 
     let account = exists.unwrap();
-    if utils::verify_hash(&cred.password, &account.password) == false {
+    if utils::verify_hash(&cred.password, account.password.as_ref().unwrap()) == false {
         return HttpResponse::Unauthorized().body("Invalid password");
     }
 
