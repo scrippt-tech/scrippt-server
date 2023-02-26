@@ -28,6 +28,7 @@ fi
 export JWT_SECRET="secret"
 export APP_NAME="scrippt"
 export DOMAIN="localhost"
+export GOOGLE_CLIENT_ID="82324295624-32uqo7r4j24etafpr2t0ddqt5b0etmj8.apps.googleusercontent.com"
 
 # Use a single thread for testing to prevent race conditions
 export RUST_TEST_THREADS=1
@@ -38,7 +39,7 @@ if [ -n "${LOG_LEVEL:-}" ]; then
     RUST_LOG=$LOG_LEVEL cargo test --test 'test_*'
 # if LOG_LEVEL is not set, use info
 elif [ -z "${LOG_LEVEL:-}" ]; then
-    cargo test --test 'test_*'
+    RUST_LOG=info cargo test --test 'test_*'
 # if LOG_LEVEL is invalid, exit with an error
 else
     echo "Invalid log level"

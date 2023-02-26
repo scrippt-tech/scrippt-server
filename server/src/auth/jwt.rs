@@ -48,21 +48,21 @@ pub fn decode_jwt(token: String, secret: &str) -> Result<Claims, Error> {
 /// A Google ID token claims.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GoogleAuthClaims {
-    iss: String,
-    nbf: usize,
-    aud: String,
-    sub: String,
-    hd: String,
-    email: String,
-    email_verified: bool,
-    azp: String,
-    name: String,
-    picture: String,
-    given_name: String,
-    family_name: String,
-    iat: usize,
-    exp: usize,
-    jti: String,
+    pub iss: String,
+    pub nbf: usize,
+    pub aud: String,
+    pub sub: String,
+    pub hd: String,
+    pub email: String,
+    pub email_verified: bool,
+    pub azp: String,
+    pub name: String,
+    pub picture: String,
+    pub given_name: String,
+    pub family_name: String,
+    pub iat: usize,
+    pub exp: usize,
+    pub jti: String,
 }
 
 /// A JWK set from Google.
@@ -93,7 +93,7 @@ impl std::str::FromStr for GoogleJwkSet {
 /// ```
 pub async fn decode_google_token_id(token: &str) -> Result<GoogleAuthClaims, Error> {
     let client_id = std::env::var("GOOGLE_CLIENT_ID").unwrap();
-    let key_path = "server/keys/.jwk";
+    let key_path = "./keys/.jwk";
 
     // Retrieve JWKs from google_jwk.json if it exists and if the max_age JSON field is not greater than last modified.
     // Else retrieve JWKs from Google's JWK endpoint.
