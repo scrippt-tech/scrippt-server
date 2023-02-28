@@ -189,12 +189,26 @@ pub async fn delete_account(
 /// }
 /// ```
 #[post("/create")]
-pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> HttpResponse {
+pub async fn create_account(
+    db: Data<DatabaseRepository>,
+    redis: Data<RedisRepository>,
+    acc: Json<User>,
+) -> HttpResponse {
     let exists = db.get_account_by_email(&acc.email).await;
     log::info!("Account exists: {:?}", exists);
     match exists {
         Ok(_) => return HttpResponse::Conflict().body("Account already exists"),
         Err(_) => (),
+    }
+
+    // Check if account was verified by looking up the verification code
+    // status in the redis cache
+    let val = redis.get(&acc.email).await.unwrap();
+    if val.is_empty() {
+        return HttpResponse::BadRequest().body("Account is pending verification. Please resend the verification code, verify your email, and try again.");
+    }
+    if val.split(":").collect::<Vec<&str>>()[1] == "pending" {
+        return HttpResponse::BadRequest().body("Account has not been verified yet");
     }
 
     // TODO: Move this to a middleware
@@ -247,6 +261,9 @@ pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> Ht
     let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
 
     let response = AuthResponse { id, token };
+
+    // Delete the verification code from the redis cache
+    redis.del(&acc.email).await.unwrap();
 
     match result {
         Ok(_result) => HttpResponse::Created().json(response),
