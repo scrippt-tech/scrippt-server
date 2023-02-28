@@ -24,6 +24,11 @@ if ! docker ps | grep -q mongo; then
     docker run -d -p 27017:27017 --name test-scrippt mongo:latest
 fi
 
+# Start a docker Redis database
+if ! docker ps | grep -q redis; then
+    docker run -d -p 6379:6379 --name test-scrippt-redis redis:latest
+fi
+
 # Set environment variables
 export JWT_SECRET="secret"
 export APP_NAME="scrippt"

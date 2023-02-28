@@ -6,9 +6,12 @@ use actix_web::{
 use serde::{Deserialize, Serialize};
 use std::env;
 
-use crate::auth::jwt::{decode_google_token_id, encode_jwt, GoogleAuthClaims};
 use crate::auth::user_auth::AuthorizationService;
-use crate::auth::utils;
+use crate::utils;
+use crate::{
+    auth::jwt::{decode_google_token_id, encode_jwt, GoogleAuthClaims},
+    repository::redis::RedisRepository,
+};
 use crate::{
     models::profile::Profile,
     models::user::{AccountPatch, User},
@@ -38,6 +41,18 @@ pub struct Credentials {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExternalAccountQuery {
     pub token_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct VerificationCodeQuery {
+    pub name: String,
+    pub email: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct VerificationQuery {
+    pub email: String,
+    pub code: String,
 }
 
 /// API route to get a user's account by id. Returns a user's account information.
@@ -110,7 +125,7 @@ pub async fn update_account(
     }
 
     if req.path == "password" {
-        req.value = utils::generate_hash(&req.value);
+        req.value = utils::validation::generate_hash(&req.value);
     }
 
     let to_update = AccountPatch {
@@ -180,12 +195,26 @@ pub async fn delete_account(
 /// }
 /// ```
 #[post("/create")]
-pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> HttpResponse {
+pub async fn create_account(
+    db: Data<DatabaseRepository>,
+    redis: Data<RedisRepository>,
+    acc: Json<User>,
+) -> HttpResponse {
     let exists = db.get_account_by_email(&acc.email).await;
     log::info!("Account exists: {:?}", exists);
     match exists {
         Ok(_) => return HttpResponse::Conflict().body("Account already exists"),
         Err(_) => (),
+    }
+
+    // Check if account was verified by looking up the verification code
+    // status in the redis cache
+    let val = redis.get(&acc.email).await.unwrap();
+    if val.is_empty() {
+        return HttpResponse::BadRequest().body("Account has not been submitted for verification or verification window has expired. Please try to verify again.");
+    }
+    if val.split(":").collect::<Vec<&str>>()[1] == "pending" {
+        return HttpResponse::BadRequest().body("Account has not been verified yet");
     }
 
     // TODO: Move this to a middleware
@@ -196,13 +225,13 @@ pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> Ht
         Some(p) => p,
         None => return HttpResponse::BadRequest().body("Password is required"),
     };
-    match utils::validate_signup(&acc.email, password) {
+    match utils::validation::validate_signup(&acc.email, password) {
         Ok(_) => (),
         Err(e) => return HttpResponse::BadRequest().json(e.to_string()),
     };
 
     let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set"); // set this to global variable
-    let hash_password = utils::generate_hash(password);
+    let hash_password = utils::validation::generate_hash(password);
 
     let empty_profile = Profile {
         education: vec![],
@@ -239,6 +268,9 @@ pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> Ht
 
     let response = AuthResponse { id, token };
 
+    // Delete the verification code from the redis cache
+    redis.del(&acc.email).await.unwrap();
+
     match result {
         Ok(_result) => HttpResponse::Created().json(response),
         Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
@@ -260,7 +292,7 @@ pub async fn login_account(db: Data<DatabaseRepository>, cred: Json<Credentials>
         return HttpResponse::Unauthorized().body("Invalid password");
     }
 
-    if utils::verify_hash(&cred.password, account.password.as_ref().unwrap()) == false {
+    if utils::validation::verify_hash(&cred.password, account.password.as_ref().unwrap()) == false {
         return HttpResponse::Unauthorized().body("Invalid password");
     }
 
@@ -339,5 +371,77 @@ pub async fn authenticate_external_account(
                 Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
             }
         }
+    }
+}
+
+/// Route to generate a verification code and send it to the user's email
+/// The route generates a 6 digit code, stores it in a Redis cache
+/// and sends it to the user's email
+///
+/// The code is valid for 10 minutes and is stored in the following
+/// key-value format:
+/// ```
+/// email -> code:status
+/// ```
+///
+/// The status is either `pending` or `used`
+#[post("/auth/verification-code")]
+pub async fn get_verification_code(
+    redis: Data<RedisRepository>,
+    query: Query<VerificationCodeQuery>,
+) -> HttpResponse {
+    let name = query.name.to_owned();
+    let email = query.email.to_owned();
+    let code = utils::validation::generate_verification_code();
+    let status = "pending";
+    let expiration_time = utils::validation::get_expiration_time(10);
+    let value = format!("{}:{}", code, status);
+
+    let result = redis.set(&email, &value).await;
+    match result {
+        Ok(_) => (),
+        Err(e) => return HttpResponse::InternalServerError().json(e.to_string()),
+    }
+    redis.expire(&email, expiration_time).await.unwrap();
+
+    let result = utils::sendgrid::send_email_verification(&email, &name, &code).await;
+    match result {
+        Ok(_) => HttpResponse::Ok().json("Verification code sent"),
+        Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
+    }
+}
+
+/// Route to verify a user's email given a verification code
+/// The route checks if the code is valid and if it has not been used
+/// If the code is valid and has not been used, it sets the token to `used`
+/// and returns a `204` no content response.
+/// If the code is invalid or has been used, it returns a `400`
+/// bad request response
+#[post("/auth/verify-email")]
+pub async fn verify_email(
+    redis: Data<RedisRepository>,
+    query: Query<VerificationQuery>,
+) -> HttpResponse {
+    let email = query.email.to_owned();
+    let code = query.code.to_owned();
+
+    let result = redis.get(&email).await;
+    match result {
+        Ok(value) => {
+            let parts: Vec<&str> = value.split(':').collect();
+            let stored_code = parts[0];
+            let status = parts[1];
+
+            if stored_code == code && status == "pending" {
+                let new_value = format!("{}:{}", stored_code, "used");
+                redis.set(&email, &new_value).await.unwrap();
+                HttpResponse::NoContent().finish()
+            } else if status == "used" {
+                HttpResponse::BadRequest().body("Code already used")
+            } else {
+                HttpResponse::Unauthorized().body("Invalid code")
+            }
+        }
+        Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
     }
 }
