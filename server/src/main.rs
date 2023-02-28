@@ -1,4 +1,3 @@
-use actix_redis::RedisActor;
 use actix_web::{
     middleware::{Logger, NormalizePath},
     web, App, HttpServer,
@@ -7,7 +6,7 @@ use dotenv::dotenv;
 use env_logger::fmt::Color;
 use log;
 use server::handlers::account_handlers;
-use server::repository::database::DatabaseRepository;
+use server::repository::{database::DatabaseRepository, redis::RedisRepository};
 use std::env;
 use std::io::Write;
 
@@ -42,7 +41,7 @@ async fn main() -> std::io::Result<()> {
         })
         .init();
 
-    log::info!("Starting server on port 8000...");
+    log::info!("Starting server on port 8080...");
 
     let user = env::var("MONGO_USER").expect("MONGO_USER must be set");
     let psw = env::var("MONGO_PASSWORD").expect("MONGO_PASSWORD must be set");
@@ -59,7 +58,7 @@ async fn main() -> std::io::Result<()> {
     let data = web::Data::new(db);
 
     // Redis
-    let redis = RedisActor::start("127.0.0.1:6379");
+    let redis = RedisRepository::new("redis://127.0.0.1:6379/");
     let redis_data = web::Data::new(redis);
 
     HttpServer::new(move || {
@@ -75,9 +74,9 @@ async fn main() -> std::io::Result<()> {
                     .service(account_handlers::authenticate_external_account)
                     .service(account_handlers::update_account)
                     .service(account_handlers::delete_account)
-                    .service(account_handlers::login_account),
+                    .service(account_handlers::login_account)
+                    .service(account_handlers::generate_otp),
             )
-            // health check endpoint returns 200 OK
             .route("/health", web::get().to(|| async { "OK" }))
         // .service(web::scope("/api/profile").service(profile_handlers::change_profile))
         // .service(web::scope("/api/document").service(document_handlers::document))

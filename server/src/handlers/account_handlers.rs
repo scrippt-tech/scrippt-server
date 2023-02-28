@@ -6,9 +6,12 @@ use actix_web::{
 use serde::{Deserialize, Serialize};
 use std::env;
 
-use crate::auth::jwt::{decode_google_token_id, encode_jwt, GoogleAuthClaims};
 use crate::auth::user_auth::AuthorizationService;
 use crate::auth::utils;
+use crate::{
+    auth::jwt::{decode_google_token_id, encode_jwt, GoogleAuthClaims},
+    repository::redis::RedisRepository,
+};
 use crate::{
     models::profile::Profile,
     models::user::{AccountPatch, User},
@@ -38,6 +41,11 @@ pub struct Credentials {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExternalAccountQuery {
     pub token_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OTPQuery {
+    pub email: String,
 }
 
 /// API route to get a user's account by id. Returns a user's account information.
@@ -340,4 +348,41 @@ pub async fn authenticate_external_account(
             }
         }
     }
+}
+
+/// Route to generate a OTP code and send it to the user's email
+/// The route generates a 6 digit code, stores it in a Redis cache
+/// and sends it to the user's email
+///
+/// The code is valid for 10 minutes and is stored in the following
+/// key-value format:
+/// ```
+/// email -> code:status
+/// ```
+///
+/// The status is either `pending` or `used`
+#[post("/auth/otp")]
+pub async fn generate_otp(redis: Data<RedisRepository>, query: Query<OTPQuery>) -> HttpResponse {
+    let email = query.email.to_owned();
+    let code = utils::generate_otp_code();
+    let status = "pending";
+    let expiration_time = utils::get_expiration_time(10);
+    let value = format!("{}:{}", code, status);
+
+    let result = redis.set(&email, &value).await;
+    match result {
+        Ok(_) => {
+            redis.expire(&email, expiration_time).await.unwrap();
+            let code = redis.get(&email).await.unwrap();
+            log::debug!("OTP code saved: {}", code);
+            HttpResponse::Ok().json("OTP code saved")
+        } // TODO: remove this when email is working
+        Err(e) => return HttpResponse::InternalServerError().json(e.to_string()),
+    }
+
+    // let result = utils::send_otp_email(&email, &code).await;
+    // match result {
+    //     Ok(_) => HttpResponse::Ok().json("OTP code sent"),
+    //     Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
+    // }
 }

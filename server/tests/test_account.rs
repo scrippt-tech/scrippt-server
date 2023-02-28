@@ -13,7 +13,7 @@ use actix_web::{
 };
 use env_logger;
 use server::handlers::account_handlers::*;
-use server::repository::database::DatabaseRepository;
+use server::repository::{database::DatabaseRepository, redis::RedisRepository};
 // use std::env;
 use chrono;
 use more_asserts::*;
@@ -34,11 +34,13 @@ async fn get_app() -> App<
     // set up the logger to debug
     INIT.call_once(|| env_logger::init());
     let db = DatabaseRepository::new("mongodb://localhost:27017", "localhost".to_string()).await;
+    let redis = RedisRepository::new("redis://localhost:6379");
     let _ = db.drop_database().await;
     App::new()
         .wrap(middleware::NormalizePath::trim())
         .wrap(middleware::Logger::default())
         .app_data(web::Data::new(db))
+        .app_data(web::Data::new(redis))
         .service(
             web::scope("/account")
                 .service(create_account)
@@ -46,7 +48,8 @@ async fn get_app() -> App<
                 .service(get_account_by_id)
                 .service(update_account)
                 .service(delete_account)
-                .service(login_account),
+                .service(login_account)
+                .service(generate_otp),
         )
 }
 
@@ -520,4 +523,25 @@ async fn test_account_login_invalid_credentials() {
         .to_request();
     let resp = test::call_service(&server, req).await;
     assert_eq!(resp.status(), 401);
+}
+
+/// This tests the otp endpoint
+/// It verifies that the code was added to the redis cache
+#[actix_rt::test]
+async fn test_otp() {
+    let app = get_app().await;
+    let server = test::init_service(app).await;
+    let req = test::TestRequest::post()
+        .uri("/account/auth/otp?email=some@email.com")
+        .to_request();
+    let _ = test::call_service(&server, req).await;
+
+    // Verify that the redis cache contains the email as a key
+    let redis = RedisRepository::new("redis://localhost:6379");
+    let value = redis.get("some@email.com").await.unwrap();
+    let val = value.split(':').collect::<Vec<&str>>();
+    let exists = redis.exists("some@email.com").await.unwrap();
+    assert_eq!(val[0].len(), 6);
+    assert_eq!(val[1], "pending");
+    assert!(exists);
 }
