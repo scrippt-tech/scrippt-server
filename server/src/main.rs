@@ -66,6 +66,7 @@ async fn main() -> std::io::Result<()> {
                 web::scope("/account")
                     .service(account_handlers::get_account_by_id)
                     .service(account_handlers::create_account)
+                    .service(account_handlers::authenticate_external_account)
                     .service(account_handlers::update_account)
                     .service(account_handlers::delete_account)
                     .service(account_handlers::login_account),
@@ -75,7 +76,7 @@ async fn main() -> std::io::Result<()> {
         // .service(web::scope("/api/profile").service(profile_handlers::change_profile))
         // .service(web::scope("/api/document").service(document_handlers::document))
     })
-    .bind("0.0.0.0:8000")?
+    .bind("0.0.0.0:8080")?
     .run()
     .await
 }

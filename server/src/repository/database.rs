@@ -87,6 +87,8 @@ impl DatabaseRepository {
             name: user.name,
             email: user.email,
             password: user.password,
+            external_id: user.external_id,
+            external_provider: user.external_provider,
             profile: user.profile,
             documents: user.documents,
             date_created: user.date_created,
