@@ -49,7 +49,7 @@ async fn get_app() -> App<
                 .service(update_account)
                 .service(delete_account)
                 .service(login_account)
-                .service(generate_otp),
+                .service(get_verification_code),
         )
 }
 
@@ -525,16 +525,18 @@ async fn test_account_login_invalid_credentials() {
     assert_eq!(resp.status(), 401);
 }
 
-/// This tests the otp endpoint
+/// This tests the verification code endpoint
 /// It verifies that the code was added to the redis cache
 #[actix_rt::test]
-async fn test_otp() {
+#[ignore = "This test sends an email; it requires a SendGrid API key to be set in the environment"]
+async fn test_verification_code() {
     let app = get_app().await;
     let server = test::init_service(app).await;
     let req = test::TestRequest::post()
-        .uri("/account/auth/otp?email=some@email.com")
+        .uri("/account/auth/verification-code?name=test&email=some@email.com")
         .to_request();
-    let _ = test::call_service(&server, req).await;
+    let res = test::call_service(&server, req).await;
+    assert_eq!(res.status(), 200);
 
     // Verify that the redis cache contains the email as a key
     let redis = RedisRepository::new("redis://localhost:6379");

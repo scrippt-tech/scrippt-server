@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::env;
 
 use crate::auth::user_auth::AuthorizationService;
-use crate::auth::utils;
+use crate::utils;
 use crate::{
     auth::jwt::{decode_google_token_id, encode_jwt, GoogleAuthClaims},
     repository::redis::RedisRepository,
@@ -44,7 +44,8 @@ pub struct ExternalAccountQuery {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct OTPQuery {
+pub struct VerificationCodeQuery {
+    pub name: String,
     pub email: String,
 }
 
@@ -118,7 +119,7 @@ pub async fn update_account(
     }
 
     if req.path == "password" {
-        req.value = utils::generate_hash(&req.value);
+        req.value = utils::validation::generate_hash(&req.value);
     }
 
     let to_update = AccountPatch {
@@ -204,13 +205,13 @@ pub async fn create_account(db: Data<DatabaseRepository>, acc: Json<User>) -> Ht
         Some(p) => p,
         None => return HttpResponse::BadRequest().body("Password is required"),
     };
-    match utils::validate_signup(&acc.email, password) {
+    match utils::validation::validate_signup(&acc.email, password) {
         Ok(_) => (),
         Err(e) => return HttpResponse::BadRequest().json(e.to_string()),
     };
 
     let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set"); // set this to global variable
-    let hash_password = utils::generate_hash(password);
+    let hash_password = utils::validation::generate_hash(password);
 
     let empty_profile = Profile {
         education: vec![],
@@ -268,7 +269,7 @@ pub async fn login_account(db: Data<DatabaseRepository>, cred: Json<Credentials>
         return HttpResponse::Unauthorized().body("Invalid password");
     }
 
-    if utils::verify_hash(&cred.password, account.password.as_ref().unwrap()) == false {
+    if utils::validation::verify_hash(&cred.password, account.password.as_ref().unwrap()) == false {
         return HttpResponse::Unauthorized().body("Invalid password");
     }
 
@@ -350,7 +351,7 @@ pub async fn authenticate_external_account(
     }
 }
 
-/// Route to generate a OTP code and send it to the user's email
+/// Route to generate a verification code and send it to the user's email
 /// The route generates a 6 digit code, stores it in a Redis cache
 /// and sends it to the user's email
 ///
@@ -361,28 +362,28 @@ pub async fn authenticate_external_account(
 /// ```
 ///
 /// The status is either `pending` or `used`
-#[post("/auth/otp")]
-pub async fn generate_otp(redis: Data<RedisRepository>, query: Query<OTPQuery>) -> HttpResponse {
+#[post("/auth/verification-code")]
+pub async fn get_verification_code(
+    redis: Data<RedisRepository>,
+    query: Query<VerificationCodeQuery>,
+) -> HttpResponse {
+    let name = query.name.to_owned();
     let email = query.email.to_owned();
-    let code = utils::generate_otp_code();
+    let code = utils::validation::generate_verification_code();
     let status = "pending";
-    let expiration_time = utils::get_expiration_time(10);
+    let expiration_time = utils::validation::get_expiration_time(10);
     let value = format!("{}:{}", code, status);
 
     let result = redis.set(&email, &value).await;
     match result {
-        Ok(_) => {
-            redis.expire(&email, expiration_time).await.unwrap();
-            let code = redis.get(&email).await.unwrap();
-            log::debug!("OTP code saved: {}", code);
-            HttpResponse::Ok().json("OTP code saved")
-        } // TODO: remove this when email is working
+        Ok(_) => (),
         Err(e) => return HttpResponse::InternalServerError().json(e.to_string()),
     }
+    redis.expire(&email, expiration_time).await.unwrap();
 
-    // let result = utils::send_otp_email(&email, &code).await;
-    // match result {
-    //     Ok(_) => HttpResponse::Ok().json("OTP code sent"),
-    //     Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
-    // }
+    let result = utils::sendgrid::send_email_verification(&email, &name, &code).await;
+    match result {
+        Ok(_) => HttpResponse::Ok().json("Verification code sent"),
+        Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
+    }
 }

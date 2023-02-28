@@ -27,6 +27,7 @@ reqwest = { version = "0.11.14", features = ["json", "blocking"] }
 email-address-parser = "1.0.3"
 rand = "0.8.3"
 more-asserts = "0.3.1"
+sendgrid = { version = "0.18.1", features = ["async"] }
 
 [[bin]]
 name = "server"

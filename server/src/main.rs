@@ -75,7 +75,7 @@ async fn main() -> std::io::Result<()> {
                     .service(account_handlers::update_account)
                     .service(account_handlers::delete_account)
                     .service(account_handlers::login_account)
-                    .service(account_handlers::generate_otp),
+                    .service(account_handlers::get_verification_code),
             )
             .route("/health", web::get().to(|| async { "OK" }))
         // .service(web::scope("/api/profile").service(profile_handlers::change_profile))

@@ -36,16 +36,16 @@ pub fn validate_signup(email: &str, password: &str) -> Result<(), String> {
     Ok(())
 }
 
-// OTP utils
+// Verification code utils
 
-/// Generate a random 6 digit OTP using the current time as a seed
-pub fn generate_otp_code() -> String {
+/// Generate a random 6 digit verification using the current time as a seed
+pub fn generate_verification_code() -> String {
     let mut rng = rand::thread_rng();
-    let otp: u32 = rng.gen_range(100000..999999);
-    otp.to_string()
+    let verification: u32 = rng.gen_range(100000..999999);
+    verification.to_string()
 }
 
-/// Get expiration time for an OTP code given minutes to expire
+/// Get expiration time for an verification code given minutes to expire
 pub fn get_expiration_time(minutes: usize) -> usize {
     let now = chrono::Utc::now();
     let expiration_time = now + chrono::Duration::minutes(minutes as i64);
