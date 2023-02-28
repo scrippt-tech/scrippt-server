@@ -24,12 +24,13 @@ pub async fn send_email_verification(
         .set_template_id("d-2bef8acb2a844b15b5de389d8b8eea09");
 
     let resp = client.send(&message).await?;
-    println!("{:?}", resp);
+    log::info!("Sendgrid email verification response {:?}", resp);
 
     Ok(())
 }
 
 /// Send a welcome email to the user.
+/// TODO: Add template ID
 pub async fn send_account_created(email: &str, name: &str) -> Result<(), SendgridError> {
     let api_key = std::env::var("SENDGRID_API_KEY").unwrap();
     let client = Sender::new(api_key);

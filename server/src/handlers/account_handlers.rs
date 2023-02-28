@@ -49,6 +49,12 @@ pub struct VerificationCodeQuery {
     pub email: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct VerificationQuery {
+    pub email: String,
+    pub code: String,
+}
+
 /// API route to get a user's account by id. Returns a user's account information.
 /// ### Response body (if successful):
 /// ```
@@ -205,7 +211,7 @@ pub async fn create_account(
     // status in the redis cache
     let val = redis.get(&acc.email).await.unwrap();
     if val.is_empty() {
-        return HttpResponse::BadRequest().body("Account is pending verification. Please resend the verification code, verify your email, and try again.");
+        return HttpResponse::BadRequest().body("Account has not been submitted for verification or verification window has expired. Please try to verify again.");
     }
     if val.split(":").collect::<Vec<&str>>()[1] == "pending" {
         return HttpResponse::BadRequest().body("Account has not been verified yet");
@@ -401,6 +407,41 @@ pub async fn get_verification_code(
     let result = utils::sendgrid::send_email_verification(&email, &name, &code).await;
     match result {
         Ok(_) => HttpResponse::Ok().json("Verification code sent"),
+        Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
+    }
+}
+
+/// Route to verify a user's email given a verification code
+/// The route checks if the code is valid and if it has not been used
+/// If the code is valid and has not been used, it sets the token to `used`
+/// and returns a `204` no content response.
+/// If the code is invalid or has been used, it returns a `400`
+/// bad request response
+#[post("/auth/verify-email")]
+pub async fn verify_email(
+    redis: Data<RedisRepository>,
+    query: Query<VerificationQuery>,
+) -> HttpResponse {
+    let email = query.email.to_owned();
+    let code = query.code.to_owned();
+
+    let result = redis.get(&email).await;
+    match result {
+        Ok(value) => {
+            let parts: Vec<&str> = value.split(':').collect();
+            let stored_code = parts[0];
+            let status = parts[1];
+
+            if stored_code == code && status == "pending" {
+                let new_value = format!("{}:{}", stored_code, "used");
+                redis.set(&email, &new_value).await.unwrap();
+                HttpResponse::NoContent().finish()
+            } else if status == "used" {
+                HttpResponse::BadRequest().body("Code already used")
+            } else {
+                HttpResponse::Unauthorized().body("Invalid code")
+            }
+        }
         Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
     }
 }
