@@ -18,7 +18,8 @@ pub async fn send_email_verification(
     let personalization = Personalization::new(Email::new(email.to_string()))
         .add_dynamic_template_data(template_data);
 
-    let message = Message::new(Email::new("noreply@scrippt.tech".to_string()))
+    let sender = Email::new("noreply@scrippt.tech".to_string()).set_name("Scrippt".to_string());
+    let message = Message::new(sender)
         .set_subject("Scrippt: Verify your email!")
         .add_personalization(personalization)
         .set_template_id("d-2bef8acb2a844b15b5de389d8b8eea09");
@@ -41,8 +42,10 @@ pub async fn send_account_created(email: &str, name: &str) -> Result<(), Sendgri
     let personalization = Personalization::new(Email::new(email.to_string()))
         .add_dynamic_template_data(template_data);
 
-    let message = Message::new(Email::new("noreply@scrippt.tech"))
+    let sender = Email::new("noreply@scrippt.tech".to_string()).set_name("Scrippt".to_string());
+    let message = Message::new(sender)
         .set_subject("Scrippt: Your account has been created!")
+        .set_reply_to(Email::new("info@scrippt.tech".to_string()))
         .add_personalization(personalization)
         .set_template_id("d-"); // TODO: Add template ID
 
