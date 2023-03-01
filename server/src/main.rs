@@ -1,4 +1,6 @@
+use actix_cors::Cors;
 use actix_web::{
+    http,
     middleware::{Logger, NormalizePath},
     web, App, HttpServer,
 };
@@ -62,7 +64,17 @@ async fn main() -> std::io::Result<()> {
     let redis_data = web::Data::new(redis);
 
     HttpServer::new(move || {
+        let cors = Cors::default()
+            .allowed_origin("http://localhost:8000")
+            .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+            .allowed_headers(vec![
+                http::header::AUTHORIZATION,
+                http::header::ACCEPT,
+                http::header::CONTENT_TYPE,
+            ])
+            .max_age(3600);
         App::new()
+            .wrap(cors)
             .wrap(Logger::default())
             .wrap(NormalizePath::trim())
             .app_data(redis_data.clone())
