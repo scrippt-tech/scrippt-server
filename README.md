@@ -2,7 +2,7 @@
 
 This is the server for the Scrippt project. It is written in Rust and uses the Actix Web framework.
 
-# Quick Start
+## Quick Start
 To get started, [install](https://www.rust-lang.org/tools/install) Rust on Unix systems with
 ```bash
 $ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
@@ -53,3 +53,23 @@ DOMAIN=localhost
 Note: These values are for development purposes only. **DO NOT** use these values in production.
 
 To get the `GOOGLE_CLIENT_ID` and the `SENDGRID_API_KEY`, please ask another member of the Scrippt team for these values.
+
+### MongoDB and Redis on Docker
+For ease of use, we will use Docker to run MongoDB and Redis. To install Docker, follow the instructions [here](https://docs.docker.com/get-docker/).
+
+To run MongoDB and Redis on Docker, run the following commands:
+```bash
+$ docker run -d -p 27017:27017 --name scrippt-mongo mongo:latest
+$ docker run -d -p 6379:6379 --name scrippt-redis redis:latest
+```
+
+Make sure that MongoDB and Redis are running by running the following commands:
+```bash
+$ docker ps
+CONTAINER ID   IMAGE          COMMAND                  CREATED      STATUS      PORTS                      NAMES
+b6533804070e   redis:latest   "docker-entrypoint.s…"   2 days ago   Up 2 days   0.0.0.0:6379->6379/tcp     scrippt-redis
+92a3c262348b   mongo:latest   "docker-entrypoint.s…"   2 days ago   Up 2 days   0.0.0.0:27017->27017/tcp   scrippt-mongo
+```
+
+You can also open Docker Desktop to see the containers running.
+
