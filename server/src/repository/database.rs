@@ -19,7 +19,7 @@ pub struct DatabaseRepository {
 
 impl DatabaseRepository {
     /// Initialize the repository with a MongoDB connection
-    pub async fn new(uri: &str, host: String) -> Self {
+    pub async fn new(uri: &str) -> Self {
         let uri = uri.to_string();
         let client_options = ClientOptions::parse(uri)
             .await
@@ -29,13 +29,13 @@ impl DatabaseRepository {
 
         match client {
             Ok(client) => {
-                log::info!("Connected to MongoDB at {}", host);
+                log::info!("Connected to MongoDB");
                 let db = client.database("scrippt");
                 let user_collection: Collection<User> = db.collection("users");
                 DatabaseRepository { user_collection }
             }
             Err(_) => {
-                log::error!("Failed to connect to MongoDB at {}", host);
+                log::error!("Failed to connect to MongoDB");
                 panic!("Panicking because of failed connection to MongoDB");
             }
         }
@@ -87,6 +87,8 @@ impl DatabaseRepository {
             name: user.name,
             email: user.email,
             password: user.password,
+            external_id: user.external_id,
+            external_provider: user.external_provider,
             profile: user.profile,
             documents: user.documents,
             date_created: user.date_created,

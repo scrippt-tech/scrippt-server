@@ -25,7 +25,7 @@ ARG APP=/usr/src/app
 
 RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
-EXPOSE 8000
+EXPOSE 8080
 
 # Set environment variables
 ENV MONGO_USER=scrippt-dev

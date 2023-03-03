@@ -1,4 +1,6 @@
+use actix_cors::Cors;
 use actix_web::{
+    http,
     middleware::{Logger, NormalizePath},
     web, App, HttpServer,
 };
@@ -6,7 +8,7 @@ use dotenv::dotenv;
 use env_logger::fmt::Color;
 use log;
 use server::handlers::account_handlers;
-use server::repository::database::DatabaseRepository;
+use server::repository::{database::DatabaseRepository, redis::RedisRepository};
 use std::env;
 use std::io::Write;
 
@@ -41,41 +43,51 @@ async fn main() -> std::io::Result<()> {
         })
         .init();
 
-    log::info!("Starting server on port 8000...");
+    log::info!("Starting server on port 8080...");
 
-    let user = env::var("MONGO_USER").expect("MONGO_USER must be set");
-    let psw = env::var("MONGO_PASSWORD").expect("MONGO_PASSWORD must be set");
-    let host = env::var("MONGO_HOST").expect("MONGO_HOST must be set");
-    let uri = format!(
-        "mongodb+srv://{}:{}@{}/?retryWrites=true&w=majority",
-        user.as_str(),
-        psw.as_str(),
-        host.as_str()
-    );
+    let mongo_uri = env::var("MONGO_URI").expect("MONGO_URI must be set");
+    let redis_uri = env::var("REDIS_URI").expect("REDIS_URI must be set");
 
     // Database
-    let db = DatabaseRepository::new(&uri, host).await;
+    let db = DatabaseRepository::new(&mongo_uri).await;
     let data = web::Data::new(db);
 
+    // Redis
+    let redis = RedisRepository::new(&redis_uri);
+    let redis_data = web::Data::new(redis);
+
     HttpServer::new(move || {
+        let cors = Cors::default()
+            .allowed_origin("http://localhost:8000")
+            .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+            .allowed_headers(vec![
+                http::header::AUTHORIZATION,
+                http::header::ACCEPT,
+                http::header::CONTENT_TYPE,
+            ])
+            .max_age(3600);
         App::new()
+            .wrap(cors)
             .wrap(Logger::default())
             .wrap(NormalizePath::trim())
+            .app_data(redis_data.clone())
             .app_data(data.clone())
             .service(
                 web::scope("/account")
                     .service(account_handlers::get_account_by_id)
                     .service(account_handlers::create_account)
+                    .service(account_handlers::authenticate_external_account)
                     .service(account_handlers::update_account)
                     .service(account_handlers::delete_account)
-                    .service(account_handlers::login_account),
+                    .service(account_handlers::login_account)
+                    .service(account_handlers::get_verification_code)
+                    .service(account_handlers::verify_email),
             )
-            // health check endpoint returns 200 OK
             .route("/health", web::get().to(|| async { "OK" }))
         // .service(web::scope("/api/profile").service(profile_handlers::change_profile))
         // .service(web::scope("/api/document").service(document_handlers::document))
     })
-    .bind("0.0.0.0:8000")?
+    .bind("0.0.0.0:8080")?
     .run()
     .await
 }

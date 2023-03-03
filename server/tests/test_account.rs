@@ -13,11 +13,11 @@ use actix_web::{
 };
 use env_logger;
 use server::handlers::account_handlers::*;
-use server::repository::database::DatabaseRepository;
+use server::repository::{database::DatabaseRepository, redis::RedisRepository};
 // use std::env;
 use chrono;
 use more_asserts::*;
-use server::auth::jwt::decode_jwt;
+use server::auth::jwt::{decode_google_token_id, decode_jwt};
 use std::sync::Once;
 
 static INIT: Once = Once::new();
@@ -33,23 +33,30 @@ async fn get_app() -> App<
 > {
     // set up the logger to debug
     INIT.call_once(|| env_logger::init());
-    let db = DatabaseRepository::new("mongodb://localhost:27017", "localhost".to_string()).await;
+    let db = DatabaseRepository::new("mongodb://localhost:27017").await;
+    let redis = RedisRepository::new("redis://localhost:6379");
     let _ = db.drop_database().await;
     App::new()
         .wrap(middleware::NormalizePath::trim())
         .wrap(middleware::Logger::default())
         .app_data(web::Data::new(db))
+        .app_data(web::Data::new(redis))
         .service(
             web::scope("/account")
                 .service(create_account)
+                .service(authenticate_external_account)
                 .service(get_account_by_id)
                 .service(update_account)
                 .service(delete_account)
-                .service(login_account),
+                .service(login_account)
+                .service(get_verification_code)
+                .service(verify_email),
         )
 }
 
-fn create_some_account(name: String, email: String) -> actix_http::Request {
+async fn create_some_account(name: String, email: String) -> actix_http::Request {
+    let redis = RedisRepository::new("redis://localhost:6379");
+    redis.set(email.as_str(), "123456:used").await.unwrap();
     test::TestRequest::post()
         .uri("/account/create/")
         .set_json(serde_json::json!({
@@ -68,7 +75,7 @@ fn create_some_account(name: String, email: String) -> actix_http::Request {
 async fn test_create_account() {
     let app = get_app().await;
     let app = test::init_service(app).await;
-    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string());
+    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string()).await;
     let resp = test::call_service(&app, req).await;
     // assert that the response is a 201
     assert_eq!(resp.status(), 201);
@@ -90,6 +97,80 @@ async fn test_create_account() {
     assert_eq!(jwt.jti.len(), 36);
 }
 
+#[actix_rt::test]
+#[ignore = "This test requires a valid google token id"]
+async fn test_external_account() {
+    let app = get_app().await;
+    let app = test::init_service(app).await;
+
+    let google_token_id = "<token_goes_here>";
+    let req = test::TestRequest::post()
+        .uri(format!("/account/auth/google?token_id={}", google_token_id).as_str())
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+
+    assert_eq!(resp.status(), 201);
+
+    let body = test::read_body(resp).await;
+    let json = serde_json::from_slice::<serde_json::Value>(&body).unwrap();
+
+    let id = json["id"].as_str().unwrap();
+    let token = json["token"].as_str().unwrap();
+
+    let google_jwt_claims = decode_google_token_id(google_token_id)
+        .await
+        .expect("failed to decode google token id");
+
+    // get account and compare
+    let req = test::TestRequest::get()
+        .uri("/account/")
+        .insert_header((header::AUTHORIZATION, format!("Bearer {}", token)))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+
+    assert_eq!(resp.status(), 200);
+
+    let body = test::read_body(resp).await;
+    let json = serde_json::from_slice::<serde_json::Value>(&body).unwrap();
+
+    assert_eq!(json["id"].as_str().unwrap(), id);
+    assert_eq!(json["email"].as_str().unwrap(), google_jwt_claims.email);
+    assert_eq!(json["name"].as_str().unwrap(), google_jwt_claims.name);
+
+    // test login
+    let req = test::TestRequest::post()
+        .uri(format!("/account/auth/google?token_id={}", google_token_id).as_str())
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+
+    assert_eq!(resp.status(), 200);
+
+    // try to login with empty password
+    let req = test::TestRequest::post()
+        .uri("/account/auth/login")
+        .set_json(serde_json::json!({
+            "email": google_jwt_claims.email,
+            "password": "".to_string(),
+        }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+
+    assert_eq!(resp.status(), 401);
+
+    // try to login with no password
+    let req = test::TestRequest::post()
+        .uri("/account/auth/login")
+        .set_json(serde_json::json!({
+            "email": google_jwt_claims.email,
+        }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+
+    assert_eq!(resp.status(), 400);
+
+    // assert that the token is a valid jwt
+}
+
 /// This test creates an account, then tries to create another account with the same email
 ///
 /// It should fail with a 409 Conflict
@@ -98,8 +179,9 @@ async fn test_create_account_duplicate() {
     let app = get_app().await;
     let server = test::init_service(app).await;
     // create two duplicate accounts
-    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string());
-    let req_dup = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string());
+    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string()).await;
+    let req_dup =
+        create_some_account("John Doe".to_string(), "johndoe@email.com".to_string()).await;
 
     let resp = test::call_service(&server, req).await;
     assert_eq!(resp.status(), 201);
@@ -152,6 +234,18 @@ async fn test_create_account_bad_request() {
 
     let resp = test::call_service(&server, req).await;
     assert_eq!(resp.status(), 400);
+
+    // Create account with no name
+    let req = test::TestRequest::post()
+        .uri("/account/create/")
+        .set_json(serde_json::json!({
+            "email": "jane@email.com",
+            "password": "password"
+        }))
+        .to_request();
+
+    let resp = test::call_service(&server, req).await;
+    assert_eq!(resp.status(), 400);
 }
 
 /// This test creates an account, then tries to get the account by id
@@ -162,7 +256,7 @@ async fn test_create_account_bad_request() {
 async fn test_get_account_by_id() {
     let app = get_app().await;
     let server = test::init_service(app).await;
-    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string());
+    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string()).await;
     let resp = test::call_service(&server, req).await;
     assert_eq!(resp.status(), 201);
 
@@ -192,7 +286,7 @@ async fn test_get_account_by_id() {
 async fn test_get_account_unauthorized() {
     let app = get_app().await;
     let server = test::init_service(app).await;
-    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string());
+    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string()).await;
     let resp = test::call_service(&server, req).await;
     assert_eq!(resp.status(), 201);
 
@@ -251,7 +345,7 @@ async fn test_get_account_unauthorized() {
 async fn test_update_account() {
     let app = get_app().await;
     let server = test::init_service(app).await;
-    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string());
+    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string()).await;
     let resp = test::call_service(&server, req).await;
     assert_eq!(resp.status(), 201);
 
@@ -315,7 +409,7 @@ async fn test_update_account() {
 
     // Try to login with the old password
     let req = test::TestRequest::post()
-        .uri("/account/login/")
+        .uri("/account/auth/login/")
         .set_json(serde_json::json!({
             "email": "janedoe@email.com",
             "password": "password"
@@ -326,7 +420,7 @@ async fn test_update_account() {
 
     // Login with the new password
     let req = test::TestRequest::post()
-        .uri("/account/login/")
+        .uri("/account/auth/login/")
         .set_json(serde_json::json!({
             "email": "janedoe@email.com",
             "password": "new-password"
@@ -344,7 +438,7 @@ async fn test_update_account() {
 async fn test_delete_account() {
     let app = get_app().await;
     let server = test::init_service(app).await;
-    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string());
+    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string()).await;
     let resp = test::call_service(&server, req).await;
     assert_eq!(resp.status(), 201);
 
@@ -370,12 +464,12 @@ async fn test_delete_account() {
 async fn test_account_login() {
     let app = get_app().await;
     let server = test::init_service(app).await;
-    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string());
+    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string()).await;
     let resp = test::call_service(&server, req).await;
     assert_eq!(resp.status(), 201);
 
     let req = test::TestRequest::post()
-        .uri("/account/login/")
+        .uri("/account/auth/login/")
         .set_json(serde_json::json!({
             "email": "johndoe@email.com",
             "password": "password"
@@ -410,12 +504,12 @@ async fn test_account_login() {
 async fn test_account_login_invalid_credentials() {
     let app = get_app().await;
     let server = test::init_service(app).await;
-    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string());
+    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string()).await;
     let resp = test::call_service(&server, req).await;
     assert_eq!(resp.status(), 201);
 
     let req = test::TestRequest::post()
-        .uri("/account/login/")
+        .uri("/account/auth/login/")
         .set_json(serde_json::json!({
             "email": "johndoe@email.com",
             "password": "badpassword"
@@ -425,7 +519,7 @@ async fn test_account_login_invalid_credentials() {
     assert_eq!(resp.status(), 401);
 
     let req = test::TestRequest::post()
-        .uri("/account/login/")
+        .uri("/account/auth/login/")
         .set_json(serde_json::json!({
             "email": "wrong@email.com",
             "password": "password"
@@ -433,4 +527,175 @@ async fn test_account_login_invalid_credentials() {
         .to_request();
     let resp = test::call_service(&server, req).await;
     assert_eq!(resp.status(), 401);
+}
+
+/// This tests the verification code endpoint
+/// It verifies that the code was added to the redis cache
+#[actix_rt::test]
+#[ignore = "This test sends an email; it requires a SendGrid API key to be set in the environment"]
+async fn test_verification_code() {
+    let app = get_app().await;
+    let server = test::init_service(app).await;
+    let req = test::TestRequest::post()
+        .uri("/account/auth/verification-code?name=test&email=some@email.com")
+        .to_request();
+    let res = test::call_service(&server, req).await;
+    assert_eq!(res.status(), 200);
+
+    // Verify that the redis cache contains the email as a key
+    let redis = RedisRepository::new("redis://localhost:6379");
+    let value = redis.get("some@email.com").await.unwrap();
+    let val = value.split(':').collect::<Vec<&str>>();
+    let exists = redis.exists("some@email.com").await.unwrap();
+    assert_eq!(val[0].len(), 6);
+    assert_eq!(val[1], "pending");
+    assert!(exists);
+}
+
+/// Create account integration test
+/// Sends a verification code to the email address
+/// Creates an account with the verification code
+#[actix_rt::test]
+#[ignore = "This test sends an email; it requires a SendGrid API key to be set in the environment"]
+async fn test_create_account_verified() {
+    let email = ""; // TODO: Fill in an actual email address for testing
+    let name = ""; // TODO: Fill in an actual name for testing
+    let app = get_app().await;
+    let server = test::init_service(app).await;
+    let req = test::TestRequest::post()
+        .uri(&format!(
+            "/account/auth/verification-code?name={}&email={}",
+            name, email
+        ))
+        .to_request();
+    let res = test::call_service(&server, req).await;
+    assert_eq!(res.status(), 200);
+
+    // Verify that the redis cache contains the email as a key
+    let redis = RedisRepository::new("redis://localhost:6379");
+    let value = redis.get(email).await.unwrap();
+    let val = value.split(':').collect::<Vec<&str>>();
+    let exists = redis.exists(email).await.unwrap();
+    assert_eq!(val[0].len(), 6);
+    assert_eq!(val[1], "pending");
+    assert!(exists);
+
+    // Try to create an account, but fail because the email is not verified
+    let req = test::TestRequest::post()
+        .uri("/account/create/")
+        .set_json(serde_json::json!({
+            "name": name,
+            "email": email,
+            "password": "password",
+        }))
+        .to_request();
+    let res = test::call_service(&server, req).await;
+    assert_eq!(res.status(), 400);
+    // Get the response body and log the message
+    let body = test::read_body(res).await;
+    log::info!("body: {}", std::str::from_utf8(&body).unwrap());
+
+    // submit code for verification
+    let req = test::TestRequest::post()
+        .uri(&format!(
+            "/account/auth/verify-email?email={}&code={}",
+            email, val[0]
+        ))
+        .to_request();
+    let res = test::call_service(&server, req).await;
+    assert_eq!(res.status(), 204);
+
+    // Create account
+    let req = test::TestRequest::post()
+        .uri("/account/create/")
+        .set_json(serde_json::json!({
+            "name": name,
+            "email": email,
+            "password": "password",
+        }))
+        .to_request();
+    let res = test::call_service(&server, req).await;
+
+    assert_eq!(res.status(), 201);
+
+    // Verify that the redis cache no longer contains the email as a key
+    let exists = redis.exists(email).await.unwrap();
+    assert!(!exists);
+}
+
+/// This test sends a verification code to an email address
+/// Then tries to verify the email address with an invalid code
+#[actix_rt::test]
+#[ignore = "This test sends an email; it requires a SendGrid API key to be set in the environment"]
+async fn test_invalid_verification() {
+    let email = ""; // TODO: Fill in an actual email address for testing
+    let name = ""; // TODO: Fill in an actual name for testing
+    let app = get_app().await;
+    let server = test::init_service(app).await;
+
+    // Try to create an unverified account
+    let req = test::TestRequest::post()
+        .uri("/account/create/")
+        .set_json(serde_json::json!({
+            "name": name,
+            "email": email,
+            "password": "password",
+        }))
+        .to_request();
+    let res = test::call_service(&server, req).await;
+    assert_eq!(res.status(), 400);
+    let body = test::read_body(res).await;
+    log::info!(
+        "Unverified account body: {}",
+        std::str::from_utf8(&body).unwrap()
+    );
+
+    let req = test::TestRequest::post()
+        .uri(&format!(
+            "/account/auth/verify-email?email={}&name={}",
+            email, "123456"
+        ))
+        .to_request();
+    let res = test::call_service(&server, req).await;
+    assert_eq!(res.status(), 400);
+
+    let body = test::read_body(res).await;
+    log::info!(
+        "Invalid verification code body: {}",
+        std::str::from_utf8(&body).unwrap()
+    );
+
+    let req = test::TestRequest::post()
+        .uri(&format!(
+            "/account/auth/verification-code?email={}&name={}",
+            email, name
+        ))
+        .to_request();
+    let res = test::call_service(&server, req).await;
+    assert_eq!(res.status(), 200);
+
+    // Verify that the redis cache contains the email as a key
+    let redis = RedisRepository::new("redis://localhost:6379");
+    let value = redis.get(email).await.unwrap();
+    let val = value.split(':').collect::<Vec<&str>>();
+    let exists = redis.exists(email).await.unwrap();
+    assert_eq!(val[0].len(), 6);
+    assert_eq!(val[1], "pending");
+    assert!(exists);
+
+    // submit code for verification
+    let req = test::TestRequest::post()
+        .uri(&format!(
+            "/account/auth/verify-email?email={}&code={}",
+            email, "123456"
+        ))
+        .to_request();
+    let res = test::call_service(&server, req).await;
+    assert_eq!(res.status(), 401);
+
+    let body = test::read_body(res).await;
+    log::info!(
+        "Invalid verification code body: {}",
+        std::str::from_utf8(&body).unwrap()
+    );
 }
