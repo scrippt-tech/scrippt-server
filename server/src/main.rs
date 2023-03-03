@@ -46,13 +46,14 @@ async fn main() -> std::io::Result<()> {
     log::info!("Starting server on port 8080...");
 
     let mongo_uri = env::var("MONGO_URI").expect("MONGO_URI must be set");
+    let redis_uri = env::var("REDIS_URI").expect("REDIS_URI must be set");
 
     // Database
     let db = DatabaseRepository::new(&mongo_uri).await;
     let data = web::Data::new(db);
 
     // Redis
-    let redis = RedisRepository::new("redis://127.0.0.1:6379/");
+    let redis = RedisRepository::new(&redis_uri);
     let redis_data = web::Data::new(redis);
 
     HttpServer::new(move || {
