@@ -93,11 +93,12 @@ impl std::str::FromStr for GoogleJwkSet {
 /// ```
 pub async fn decode_google_token_id(token: &str) -> Result<GoogleAuthClaims, Error> {
     let client_id = std::env::var("GOOGLE_CLIENT_ID").unwrap();
-    let key_path = "./keys/.jwk";
+    let key_path = "keys/.jwk";
 
     // Retrieve JWKs from google_jwk.json if it exists and if the max_age JSON field is not greater than last modified.
     // Else retrieve JWKs from Google's JWK endpoint.
     let jwk_set = if Path::new(key_path).exists() {
+        log::debug!(".jwk file found; retrieving JWKs from .jwk file.");
         let metadata = fs::metadata(key_path).unwrap();
         let modified = metadata.modified().unwrap();
         let jwk_set = fs::read_to_string(key_path)
@@ -152,6 +153,7 @@ pub async fn decode_google_token_id(token: &str) -> Result<GoogleAuthClaims, Err
 /// Cache the JWKs in a JSON file with a max-age field.
 /// Return the JWKs.
 async fn get_latest_keys(file_path: &str) -> Result<GoogleJwkSet, Error> {
+    log::debug!("Retrieving latest JWKs from Google's JWK endpoint.");
     let res = reqwest::get("https://www.googleapis.com/oauth2/v3/certs")
         .await
         .unwrap();
@@ -178,7 +180,10 @@ async fn get_latest_keys(file_path: &str) -> Result<GoogleJwkSet, Error> {
     };
 
     // Write JWKs to google_jwk.json
-    fs::write(&file_path, serde_json::to_string(&jwk).unwrap()).unwrap();
+    fs::write(&file_path, serde_json::to_string(&jwk).unwrap()).unwrap_or_else(|err| {
+        log::error!("Error writing JWKs to file {:?}: {:?}", file_path, err);
+        panic!();
+    });
 
     Ok(jwk)
 }

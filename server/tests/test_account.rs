@@ -33,7 +33,7 @@ async fn get_app() -> App<
 > {
     // set up the logger to debug
     INIT.call_once(|| env_logger::init());
-    let db = DatabaseRepository::new("mongodb://localhost:27017", "localhost".to_string()).await;
+    let db = DatabaseRepository::new("mongodb://localhost:27017").await;
     let redis = RedisRepository::new("redis://localhost:6379");
     let _ = db.drop_database().await;
     App::new()

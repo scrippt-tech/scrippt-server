@@ -45,18 +45,10 @@ async fn main() -> std::io::Result<()> {
 
     log::info!("Starting server on port 8080...");
 
-    let user = env::var("MONGO_USER").expect("MONGO_USER must be set");
-    let psw = env::var("MONGO_PASSWORD").expect("MONGO_PASSWORD must be set");
-    let host = env::var("MONGO_HOST").expect("MONGO_HOST must be set");
-    let uri = format!(
-        "mongodb+srv://{}:{}@{}/?retryWrites=true&w=majority",
-        user.as_str(),
-        psw.as_str(),
-        host.as_str()
-    );
+    let mongo_uri = env::var("MONGO_URI").expect("MONGO_URI must be set");
 
     // Database
-    let db = DatabaseRepository::new(&uri, host).await;
+    let db = DatabaseRepository::new(&mongo_uri).await;
     let data = web::Data::new(db);
 
     // Redis
