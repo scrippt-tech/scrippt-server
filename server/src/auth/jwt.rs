@@ -93,7 +93,7 @@ impl std::str::FromStr for GoogleJwkSet {
 /// ```
 pub async fn decode_google_token_id(token: &str) -> Result<GoogleAuthClaims, Error> {
     let client_id = std::env::var("GOOGLE_CLIENT_ID").unwrap();
-    let key_path = "keys/.jwk";
+    let key_path = "server/keys/.jwk";
 
     // Retrieve JWKs from google_jwk.json if it exists and if the max_age JSON field is not greater than last modified.
     // Else retrieve JWKs from Google's JWK endpoint.

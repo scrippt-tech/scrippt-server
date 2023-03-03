@@ -387,11 +387,19 @@ pub async fn authenticate_external_account(
 /// The status is either `pending` or `used`
 #[post("/auth/verification-code")]
 pub async fn get_verification_code(
+    db: Data<DatabaseRepository>,
     redis: Data<RedisRepository>,
     query: Query<VerificationCodeQuery>,
 ) -> HttpResponse {
     let name = query.name.to_owned();
     let email = query.email.to_owned();
+
+    // Check if email exists in the database, if it does, return an error
+    let exists = db.get_account_by_email(&email).await;
+    if !exists.is_err() {
+        return HttpResponse::BadRequest().body("Email already exists");
+    }
+
     let code = utils::validation::generate_verification_code();
     let status = "pending";
     let expiration_time = utils::validation::get_expiration_time(10);
@@ -437,9 +445,10 @@ pub async fn verify_email(
                 redis.set(&email, &new_value).await.unwrap();
                 HttpResponse::NoContent().finish()
             } else if status == "used" {
-                HttpResponse::BadRequest().body("Code already used")
+                HttpResponse::BadRequest().body("This code already used.")
             } else {
-                HttpResponse::Unauthorized().body("Invalid code")
+                HttpResponse::Unauthorized()
+                    .body("Invalid code. Please try again with the correct code.")
             }
         }
         Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
