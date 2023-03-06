@@ -15,9 +15,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - name: build
+      - name: Build
         run: cargo build --verbose
-      - name: test
+      - name: Tests
         run: ./bin/test
-      - name: rustfmt
+      - name: Format check
         run: cargo fmt --all -- --check

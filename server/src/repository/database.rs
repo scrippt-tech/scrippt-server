@@ -64,7 +64,7 @@ impl DatabaseRepository {
 
     /// Get a user account by email
     pub async fn get_account_by_email(&self, email: &str) -> Result<User, Error> {
-        let filter = doc! {"email": email};
+        let filter = doc! {"email": email.to_lowercase()};
         let account_detail = self.user_collection.find_one(filter, None).await;
         match account_detail {
             Ok(Some(account)) => Ok(account),
@@ -85,7 +85,7 @@ impl DatabaseRepository {
         let new_doc = User {
             id: None,
             name: user.name,
-            email: user.email,
+            email: user.email.to_lowercase(),
             password: user.password,
             external_id: user.external_id,
             external_provider: user.external_provider,

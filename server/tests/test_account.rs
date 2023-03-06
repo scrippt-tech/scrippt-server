@@ -190,6 +190,26 @@ async fn test_create_account_duplicate() {
     assert_eq!(resp.status(), 409);
 }
 
+/// This test creates an account, then tries to create another account with the same email
+/// but with different casing
+///
+/// It should fail with a 409 Conflict
+#[actix_rt::test]
+async fn test_create_account_duplicate_case_insensitive() {
+    let app = get_app().await;
+    let server = test::init_service(app).await;
+    // create two duplicate accounts
+    let req = create_some_account("John Doe".to_string(), "johndoe@email.com".to_string()).await;
+    let req_dup =
+        create_some_account("John Doe".to_string(), "Johndoe@email.com".to_string()).await;
+
+    let resp = test::call_service(&server, req).await;
+    assert_eq!(resp.status(), 201);
+
+    let resp = test::call_service(&server, req_dup).await;
+    assert_eq!(resp.status(), 409);
+}
+
 /// This test creates an account with a missing field, an invalid email, and an invalid password
 ///
 /// It should fail with a 400 Bad Request
@@ -593,7 +613,7 @@ async fn test_create_account_verified() {
     assert_eq!(res.status(), 400);
     // Get the response body and log the message
     let body = test::read_body(res).await;
-    log::info!("body: {}", std::str::from_utf8(&body).unwrap());
+    log::debug!("body: {}", std::str::from_utf8(&body).unwrap());
 
     // submit code for verification
     let req = test::TestRequest::post()
@@ -645,7 +665,7 @@ async fn test_invalid_verification() {
     let res = test::call_service(&server, req).await;
     assert_eq!(res.status(), 400);
     let body = test::read_body(res).await;
-    log::info!(
+    log::debug!(
         "Unverified account body: {}",
         std::str::from_utf8(&body).unwrap()
     );
@@ -660,7 +680,7 @@ async fn test_invalid_verification() {
     assert_eq!(res.status(), 400);
 
     let body = test::read_body(res).await;
-    log::info!(
+    log::debug!(
         "Invalid verification code body: {}",
         std::str::from_utf8(&body).unwrap()
     );
@@ -694,7 +714,7 @@ async fn test_invalid_verification() {
     assert_eq!(res.status(), 401);
 
     let body = test::read_body(res).await;
-    log::info!(
+    log::debug!(
         "Invalid verification code body: {}",
         std::str::from_utf8(&body).unwrap()
     );
