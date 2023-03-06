@@ -4,6 +4,7 @@
 # Project
 target/
 .env
+bin/
 
 # VSCode
 .vscode
@@ -12,3 +13,5 @@ target/
 .git
 .gitignore
 
+# Docker
+Dockerfile
