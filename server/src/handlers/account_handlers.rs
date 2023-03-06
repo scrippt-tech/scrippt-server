@@ -445,7 +445,7 @@ pub async fn verify_email(
                 redis.set(&email, &new_value).await.unwrap();
                 HttpResponse::NoContent().finish()
             } else if status == "used" {
-                HttpResponse::BadRequest().body("This code already used.")
+                HttpResponse::BadRequest().body("This code has already been used.")
             } else {
                 HttpResponse::Unauthorized()
                     .body("Invalid code. Please try again with the correct code.")
