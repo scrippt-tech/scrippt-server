@@ -25,7 +25,8 @@ pub async fn send_email_verification(
         .set_template_id("d-2bef8acb2a844b15b5de389d8b8eea09");
 
     let resp = client.send(&message).await?;
-    log::info!("Sendgrid email verification response {:?}", resp);
+
+    log::debug!("[SENDGRID] Verification code response email: {:?}", resp);
 
     Ok(())
 }
@@ -50,7 +51,8 @@ pub async fn send_account_created(email: &str, name: &str) -> Result<(), Sendgri
         .set_template_id("d-"); // TODO: Add template ID
 
     let resp = client.send(&message).await?;
-    println!("{:?}", resp);
+
+    log::debug!("[SENDGRID] Account created response email: {:?}", resp);
 
     Ok(())
 }

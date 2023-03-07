@@ -201,7 +201,7 @@ pub async fn create_account(
     acc: Json<User>,
 ) -> HttpResponse {
     let exists = db.get_account_by_email(&acc.email).await;
-    log::info!("Account exists: {:?}", exists);
+    log::debug!("Account exists: {:?}", exists);
     match exists {
         Ok(_) => return HttpResponse::Conflict().body("Account already exists"),
         Err(_) => (),
@@ -320,7 +320,6 @@ pub async fn authenticate_external_account(
         Err(e) => return HttpResponse::BadRequest().json(e.to_string()),
     };
     let email = google_claims.email;
-    log::info!("Email: {}", email);
 
     // Check if the account already exists
     let exists = db.get_account_by_email(&email).await;
