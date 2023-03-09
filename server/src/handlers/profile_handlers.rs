@@ -1,6 +1,6 @@
 use actix_web::{
     patch,
-    web::{Data, Json, Path},
+    web::{Data, Json},
     HttpResponse,
 };
 use serde::{Deserialize, Serialize};
@@ -40,14 +40,13 @@ pub struct ProfilePatch {
 ///     "date_updated": Int,
 /// }
 /// ```
-#[patch("/{id}")]
+#[patch("")]
 pub async fn change_profile(
     db: Data<DatabaseRepository>,
-    path: Path<String>,
     profile: Json<Vec<ProfilePatch>>,
-    _auth: AuthorizationService,
+    auth: AuthorizationService,
 ) -> HttpResponse {
-    let id = path.into_inner();
+    let id = auth.id;
     if id.is_empty() {
         return HttpResponse::BadRequest().body("Invalid id");
     }
