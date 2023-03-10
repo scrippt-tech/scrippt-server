@@ -48,6 +48,7 @@ pub async fn change_profile(
 ) -> HttpResponse {
     let id = auth.id;
     if id.is_empty() {
+        log::debug!("Invalid id");
         return HttpResponse::BadRequest().body("Invalid id");
     }
 
@@ -75,6 +76,7 @@ pub async fn change_profile(
                 };
             }
             _ => {
+                log::debug!("Invalid operation");
                 return HttpResponse::BadRequest().body("Invalid operation");
             }
         }

@@ -281,6 +281,7 @@ pub async fn create_account(
 pub async fn login_account(db: Data<DatabaseRepository>, cred: Json<Credentials>) -> HttpResponse {
     let exists = db.get_account_by_email(&cred.email).await;
     if exists.is_err() {
+        log::debug!("Error getting account: {:?}", exists);
         return HttpResponse::Unauthorized().body("Account does not exist");
     }
 

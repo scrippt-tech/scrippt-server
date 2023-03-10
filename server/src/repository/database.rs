@@ -73,6 +73,7 @@ impl DatabaseRepository {
             }),
             Err(e) => {
                 log::error!("Failed to get account by email {}", email);
+                log::error!("Error: {}", e);
                 Err(Error::DeserializationError {
                     message: e.to_string(),
                 })
