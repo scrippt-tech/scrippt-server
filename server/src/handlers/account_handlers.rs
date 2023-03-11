@@ -25,14 +25,6 @@ struct AuthResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct UserResponse {
-    pub id: String,
-    pub name: String,
-    pub email: String,
-    pub profile: Profile,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct Credentials {
     pub email: String,
     pub password: String,
@@ -76,18 +68,8 @@ pub async fn get_account_by_id(
         return HttpResponse::BadRequest().body("Invalid id");
     }
 
-    let acc = db.get_account(&id).await;
-
-    match acc {
-        Ok(acc) => {
-            let response = UserResponse {
-                id: acc.id.unwrap().to_hex(),
-                name: acc.name,
-                email: acc.email,
-                profile: acc.profile.unwrap_or_default(),
-            };
-            HttpResponse::Ok().json(response)
-        }
+    match db.get_account(&id).await {
+        Ok(acc) => HttpResponse::Ok().json(acc),
         Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
     }
 }
@@ -142,7 +124,7 @@ pub async fn update_account(
             if acc.matched_count == 1 {
                 HttpResponse::Ok().json(res)
             } else {
-                HttpResponse::BadRequest().body("Account not found")
+                HttpResponse::NotFound().body("Account not found")
             }
         }
         Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
@@ -282,7 +264,7 @@ pub async fn login_account(db: Data<DatabaseRepository>, cred: Json<Credentials>
     let exists = db.get_account_by_email(&cred.email).await;
     if exists.is_err() {
         log::debug!("Error getting account: {:?}", exists);
-        return HttpResponse::Unauthorized().body("Account does not exist");
+        return HttpResponse::NotFound().body("Account does not exist");
     }
 
     let account = exists.unwrap();
@@ -443,7 +425,7 @@ pub async fn verify_email(
             if stored_code == code && status == "pending" {
                 let new_value = format!("{}:{}", stored_code, "used");
                 redis.set(&email, &new_value).await.unwrap();
-                HttpResponse::NoContent().finish()
+                HttpResponse::Ok().json("Email verified")
             } else if status == "used" {
                 HttpResponse::BadRequest().body("This code has already been used.")
             } else {

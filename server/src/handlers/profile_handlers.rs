@@ -4,16 +4,16 @@ use actix_web::{
     HttpResponse,
 };
 use serde::{Deserialize, Serialize};
-use serde_json;
 
 use crate::auth::user_auth::AuthorizationService;
+use crate::models::profile::ProfileValue;
 use crate::repository::database::DatabaseRepository;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct ProfilePatch {
     pub op: String,
     pub path: String,
-    pub value: serde_json::Value,
+    pub value: ProfileValue,
 }
 
 /// # Change a user profile
@@ -51,6 +51,7 @@ pub async fn change_profile(
         log::debug!("Invalid id");
         return HttpResponse::BadRequest().body("Invalid id");
     }
+    log::debug!("Profile: {:?}", profile[0].value);
 
     for change in profile.iter() {
         let target = change.path.to_owned();
@@ -81,6 +82,8 @@ pub async fn change_profile(
             }
         }
     }
-    let new_profile = db.get_profile(&id).await.unwrap();
-    HttpResponse::Ok().json(new_profile)
+    match db.get_account(&id).await {
+        Ok(user) => HttpResponse::Ok().json(user),
+        Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
+    }
 }
