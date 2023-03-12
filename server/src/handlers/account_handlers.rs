@@ -271,6 +271,12 @@ pub async fn create_account(
     // Delete the verification code from the redis cache
     redis.del(&acc.email).await.unwrap();
 
+    // Send verification email to user
+    match utils::sendgrid::send_account_created(acc.email.as_str(), acc.name.as_str()).await {
+        Ok(_) => (),
+        Err(e) => log::error!("Error sending email: {:?}", e),
+    }
+
     match result {
         Ok(_result) => HttpResponse::Created().json(response),
         Err(e) => HttpResponse::InternalServerError().json(e.to_string()),

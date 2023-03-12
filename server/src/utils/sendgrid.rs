@@ -48,7 +48,7 @@ pub async fn send_account_created(email: &str, name: &str) -> Result<(), Sendgri
         .set_subject("Scrippt: Your account has been created!")
         .set_reply_to(Email::new("info@scrippt.tech".to_string()))
         .add_personalization(personalization)
-        .set_template_id("d-"); // TODO: Add template ID
+        .set_template_id("d-44b622c643b34c29b2be87701fde4c6c");
 
     let resp = client.send(&message).await?;
 
