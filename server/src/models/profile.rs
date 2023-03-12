@@ -11,6 +11,11 @@ pub struct Profile {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FieldId {
+    pub id: ObjectId,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ExperienceType {
     Work,
     Volunteer,
@@ -45,10 +50,15 @@ pub struct Skill {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(untagged)]
+#[serde(tag = "type", content = "value")]
 pub enum ProfileValue {
-    Education(Education),
+    #[serde(rename = "field_id")]
+    FieldId(FieldId),
+    #[serde(rename = "experience")]
     Experience(Experience),
+    #[serde(rename = "education")]
+    Education(Education),
+    #[serde(rename = "skill")]
     Skill(Skill),
 }
 
@@ -75,12 +85,19 @@ impl UpdateFieldId for Skill {
     }
 }
 
+impl UpdateFieldId for FieldId {
+    fn update_field_id(&mut self, new_id: Option<ObjectId>) {
+        self.id = new_id.unwrap();
+    }
+}
+
 impl UpdateFieldId for ProfileValue {
     fn update_field_id(&mut self, new_id: Option<ObjectId>) {
         match self {
             ProfileValue::Experience(exp) => exp.update_field_id(new_id),
             ProfileValue::Education(edu) => edu.update_field_id(new_id),
             ProfileValue::Skill(skill) => skill.update_field_id(new_id),
+            ProfileValue::FieldId(field_id) => field_id.update_field_id(new_id),
         }
     }
 }
@@ -108,12 +125,19 @@ impl GetFieldId for Skill {
     }
 }
 
+impl GetFieldId for FieldId {
+    fn get_field_id(&self) -> Option<ObjectId> {
+        Some(self.id)
+    }
+}
+
 impl GetFieldId for ProfileValue {
     fn get_field_id(&self) -> Option<ObjectId> {
         match self {
             ProfileValue::Experience(exp) => exp.get_field_id(),
             ProfileValue::Education(edu) => edu.get_field_id(),
             ProfileValue::Skill(skill) => skill.get_field_id(),
+            ProfileValue::FieldId(field_id) => field_id.get_field_id(),
         }
     }
 }
@@ -161,8 +185,16 @@ impl Default for ExperienceType {
     }
 }
 
+impl Default for FieldId {
+    fn default() -> Self {
+        Self {
+            id: ObjectId::new(),
+        }
+    }
+}
+
 impl Default for ProfileValue {
     fn default() -> Self {
-        Self::Experience(Experience::default())
+        Self::FieldId(FieldId::default())
     }
 }

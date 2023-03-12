@@ -12,7 +12,7 @@ use crate::repository::database::DatabaseRepository;
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct ProfilePatch {
     pub op: String,
-    pub path: String,
+    pub target: String,
     pub value: ProfileValue,
 }
 
@@ -24,7 +24,7 @@ pub struct ProfilePatch {
 /// ```
 /// {
 ///    "op": "add" | "update" | "remove",
-///    "path": <field>,
+///    "target": "experience" | "education" | "skills",
 ///    "value": <new value>
 /// }
 /// ```
@@ -53,11 +53,11 @@ pub async fn change_profile(
     }
     log::debug!("Profile: {:?}", profile[0].value);
 
-    for change in profile.iter() {
-        let target = change.path.to_owned();
-        let value = change.value.to_owned();
+    for order in profile.iter() {
+        let target = order.target.to_owned();
+        let value = order.value.to_owned();
         let date = chrono::Utc::now().timestamp();
-        match change.op.as_str() {
+        match order.op.as_str() {
             "add" => {
                 match db.add_profile_field(&id, target, value, date).await {
                     Ok(_result) => continue,
