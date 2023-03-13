@@ -71,14 +71,11 @@ impl DatabaseRepository {
     }
 
     /// Get a user account by email
-    pub async fn get_account_by_email(&self, email: &str) -> Result<User, Error> {
+    pub async fn get_account_by_email(&self, email: &str) -> Result<Option<User>, Error> {
         let filter = doc! {"email": email.to_lowercase()};
         let account_detail = self.user_collection.find_one(filter, None).await;
         match account_detail {
-            Ok(Some(account)) => Ok(account),
-            Ok(None) => Err(Error::DeserializationError {
-                message: "Account not found".to_string(),
-            }),
+            Ok(account) => Ok(account),
             Err(e) => {
                 log::error!("Failed to get account by email {}", email);
                 log::error!("Error: {}", e);

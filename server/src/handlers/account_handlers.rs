@@ -182,11 +182,17 @@ pub async fn create_account(
     redis: Data<RedisRepository>,
     acc: Json<User>,
 ) -> HttpResponse {
-    let exists = db.get_account_by_email(&acc.email).await;
-    log::debug!("Account exists: {:?}", exists);
-    match exists {
-        Ok(_) => return HttpResponse::Conflict().body("Account already exists"),
-        Err(_) => (),
+    let user = db.get_account_by_email(&acc.email).await;
+    match user {
+        Ok(user) => {
+            if user.is_some() {
+                return HttpResponse::Conflict().body("Account already exists");
+            }
+        }
+        Err(_) => {
+            return HttpResponse::InternalServerError()
+                .body("Internal server error: failed to get account")
+        }
     }
 
     // Check if account was verified by looking up the verification code
@@ -261,13 +267,17 @@ pub async fn create_account(
 
 #[post("/auth/login")]
 pub async fn login_account(db: Data<DatabaseRepository>, cred: Json<Credentials>) -> HttpResponse {
-    let exists = db.get_account_by_email(&cred.email).await;
-    if exists.is_err() {
-        log::debug!("Error getting account: {:?}", exists);
-        return HttpResponse::NotFound().body("Account does not exist");
-    }
-
-    let account = exists.unwrap();
+    let user = db.get_account_by_email(&cred.email).await;
+    let account = match user {
+        Ok(user) => match user {
+            Some(user) => user,
+            None => return HttpResponse::NotFound().body("Account not found"),
+        },
+        Err(_) => {
+            return HttpResponse::InternalServerError()
+                .body("Internal server error: failed to get account")
+        }
+    };
 
     // if password is None, then the account was created with an external provider
     // and we can't login with it
@@ -305,53 +315,60 @@ pub async fn authenticate_external_account(
     let email = google_claims.email;
 
     // Check if the account already exists
-    let exists = db.get_account_by_email(&email).await;
-    match exists {
-        Ok(_) => {
-            // Account exists, returning token
-            let id = exists.unwrap().id.unwrap().to_hex();
-            let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
-            HttpResponse::Ok().json(AuthResponse { id, token })
+    match db.get_account_by_email(&email).await {
+        Ok(user) => {
+            match user {
+                Some(user) => {
+                    // Account exists, returning token
+                    let id = user.id.unwrap().to_hex();
+                    let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
+                    HttpResponse::Ok().json(AuthResponse { id, token })
+                }
+                None => {
+                    // Account does not exist, creating new account
+                    let empty_profile = Profile {
+                        education: vec![],
+                        experience: vec![],
+                        skills: vec![],
+                        date_updated: Some(chrono::Utc::now().timestamp()),
+                    };
+
+                    let data = User {
+                        id: None,
+                        name: google_claims.name,
+                        email,
+                        external_id: Some(google_claims.sub),
+                        external_provider: Some("google".to_string()),
+                        password: None,
+                        profile: Some(empty_profile),
+                        documents: Some(vec![]),
+                        date_created: Some(chrono::Utc::now().timestamp()),
+                        date_updated: Some(chrono::Utc::now().timestamp()),
+                    };
+
+                    let result = db.create_account(data).await;
+
+                    let id = result
+                        .as_ref()
+                        .unwrap()
+                        .inserted_id
+                        .as_object_id()
+                        .unwrap()
+                        .to_hex();
+                    let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
+
+                    let response = AuthResponse { id, token };
+
+                    match result {
+                        Ok(_result) => HttpResponse::Created().json(response),
+                        Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
+                    }
+                }
+            }
         }
         Err(_) => {
-            // Account does not exist, creating new account
-            let empty_profile = Profile {
-                education: vec![],
-                experience: vec![],
-                skills: vec![],
-                date_updated: Some(chrono::Utc::now().timestamp()),
-            };
-
-            let data = User {
-                id: None,
-                name: google_claims.name,
-                email,
-                external_id: Some(google_claims.sub),
-                external_provider: Some("google".to_string()),
-                password: None,
-                profile: Some(empty_profile),
-                documents: Some(vec![]),
-                date_created: Some(chrono::Utc::now().timestamp()),
-                date_updated: Some(chrono::Utc::now().timestamp()),
-            };
-
-            let result = db.create_account(data).await;
-
-            let id = result
-                .as_ref()
-                .unwrap()
-                .inserted_id
-                .as_object_id()
-                .unwrap()
-                .to_hex();
-            let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
-
-            let response = AuthResponse { id, token };
-
-            match result {
-                Ok(_result) => HttpResponse::Created().json(response),
-                Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
-            }
+            return HttpResponse::InternalServerError()
+                .body("Internal server error: failed to get account")
         }
     }
 }

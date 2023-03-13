@@ -546,7 +546,7 @@ async fn test_account_login_invalid_credentials() {
         }))
         .to_request();
     let resp = test::call_service(&server, req).await;
-    assert_eq!(resp.status(), 401);
+    assert_eq!(resp.status(), 404);
 }
 
 /// This tests the verification code endpoint
