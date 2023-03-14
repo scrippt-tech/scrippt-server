@@ -21,7 +21,7 @@ pub struct User {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Account {
-    pub id: ObjectId,
+    pub id: String,
     pub name: String,
     pub email: String,
     pub profile: Profile,

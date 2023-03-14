@@ -51,14 +51,11 @@ pub struct Skill {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "type", content = "value")]
+#[serde(rename_all = "snake_case")]
 pub enum ProfileValue {
-    #[serde(rename = "field_id")]
     FieldId(FieldId),
-    #[serde(rename = "experience")]
     Experience(Experience),
-    #[serde(rename = "education")]
     Education(Education),
-    #[serde(rename = "skill")]
     Skill(Skill),
 }
 

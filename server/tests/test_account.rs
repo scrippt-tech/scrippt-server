@@ -102,6 +102,7 @@ async fn test_create_account() {
 async fn test_external_account() {
     let app = get_app().await;
     let app = test::init_service(app).await;
+    std::env::set_var("GOOGLE_JWK_PATH", ".jwk");
 
     let google_token_id = "<token_goes_here>";
     let req = test::TestRequest::post()
@@ -132,6 +133,8 @@ async fn test_external_account() {
 
     let body = test::read_body(resp).await;
     let json = serde_json::from_slice::<serde_json::Value>(&body).unwrap();
+
+    log::debug!("{:?}", json["id"].as_str());
 
     assert_eq!(json["id"].as_str().unwrap(), id);
     assert_eq!(json["email"].as_str().unwrap(), google_jwt_claims.email);
@@ -282,6 +285,7 @@ async fn test_get_account_by_id() {
 
     let body = test::read_body(resp).await;
     let json = serde_json::from_slice::<serde_json::Value>(&body).unwrap();
+    let id = json["id"].as_str().unwrap();
     let token = json["token"].as_str().unwrap();
 
     let req = test::TestRequest::get()
@@ -294,6 +298,7 @@ async fn test_get_account_by_id() {
     let body = test::read_body(resp).await;
 
     let json = serde_json::from_slice::<serde_json::Value>(&body).unwrap();
+    assert_eq!(json["id"], id);
     assert_eq!(json["name"], "John Doe");
     assert_eq!(json["email"], "johndoe@email.com");
 }

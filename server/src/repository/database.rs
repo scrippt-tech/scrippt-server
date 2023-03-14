@@ -50,7 +50,7 @@ impl DatabaseRepository {
         match account_detail {
             Ok(Some(account)) => {
                 let account = Account {
-                    id: account.id.unwrap(),
+                    id: account.id.unwrap().to_hex(),
                     name: account.name,
                     email: account.email,
                     profile: account.profile.unwrap(),
