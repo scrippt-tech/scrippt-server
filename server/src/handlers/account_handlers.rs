@@ -69,7 +69,10 @@ pub async fn get_account_by_id(
     }
 
     match db.get_account(&id).await {
-        Ok(acc) => HttpResponse::Ok().json(acc),
+        Ok(acc) => {
+            log::debug!("Account: {:?}", acc);
+            HttpResponse::Ok().json(acc)
+        }
         Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
     }
 }
@@ -394,9 +397,17 @@ pub async fn get_verification_code(
     let email = query.email.to_owned();
 
     // Check if email exists in the database, if it does, return an error
-    let exists = db.get_account_by_email(&email).await;
-    if !exists.is_err() {
-        return HttpResponse::BadRequest().body("Email already exists");
+    let user = db.get_account_by_email(&email).await;
+    match user {
+        Ok(user) => {
+            if user.is_some() {
+                return HttpResponse::Conflict().body("Account already exists");
+            }
+        }
+        Err(_) => {
+            return HttpResponse::InternalServerError()
+                .body("Internal server error: failed to get account")
+        }
     }
 
     let code = utils::validation::generate_verification_code();

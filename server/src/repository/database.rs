@@ -7,6 +7,7 @@ use mongodb::{
     results::{DeleteResult, InsertOneResult, UpdateResult},
     Client, Collection,
 };
+use serde_json;
 
 use crate::models::document::DocumentInfo;
 use crate::models::profile::{GetFieldId, Profile, ProfileValue, UpdateFieldId};
@@ -204,9 +205,11 @@ impl DatabaseRepository {
         let filter = doc! {"_id": obj_id};
         let target = format!("profile.{}", target);
         value.update_field_id(Some(ObjectId::new()));
+        let value = serde_json::to_value(value).unwrap();
+
         let update = doc! {
             "$push": {
-                target: to_bson(&value).unwrap()
+                target: to_bson(&value["value"]).unwrap()
             },
             "$set": {
                 "profile.date_updated": date,

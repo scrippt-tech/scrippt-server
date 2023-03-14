@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 pub struct Profile {
     pub education: Vec<Education>,
     pub experience: Vec<Experience>,
-    pub skills: Vec<Skill>,
+    pub skills: Vec<Skills>,
     pub date_updated: Option<i64>,
 }
 
@@ -44,7 +44,7 @@ pub struct Education {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Skill {
+pub struct Skills {
     pub field_id: Option<ObjectId>,
     pub skill: String,
 }
@@ -56,7 +56,7 @@ pub enum ProfileValue {
     FieldId(FieldId),
     Experience(Experience),
     Education(Education),
-    Skill(Skill),
+    Skills(Skills),
 }
 
 /// Trait that allows us to update the field_id of a ProfileValue
@@ -76,7 +76,7 @@ impl UpdateFieldId for Education {
     }
 }
 
-impl UpdateFieldId for Skill {
+impl UpdateFieldId for Skills {
     fn update_field_id(&mut self, new_id: Option<ObjectId>) {
         self.field_id = new_id;
     }
@@ -93,7 +93,7 @@ impl UpdateFieldId for ProfileValue {
         match self {
             ProfileValue::Experience(exp) => exp.update_field_id(new_id),
             ProfileValue::Education(edu) => edu.update_field_id(new_id),
-            ProfileValue::Skill(skill) => skill.update_field_id(new_id),
+            ProfileValue::Skills(skill) => skill.update_field_id(new_id),
             ProfileValue::FieldId(field_id) => field_id.update_field_id(new_id),
         }
     }
@@ -116,7 +116,7 @@ impl GetFieldId for Education {
     }
 }
 
-impl GetFieldId for Skill {
+impl GetFieldId for Skills {
     fn get_field_id(&self) -> Option<ObjectId> {
         self.field_id
     }
@@ -133,7 +133,7 @@ impl GetFieldId for ProfileValue {
         match self {
             ProfileValue::Experience(exp) => exp.get_field_id(),
             ProfileValue::Education(edu) => edu.get_field_id(),
-            ProfileValue::Skill(skill) => skill.get_field_id(),
+            ProfileValue::Skills(skill) => skill.get_field_id(),
             ProfileValue::FieldId(field_id) => field_id.get_field_id(),
         }
     }
@@ -167,7 +167,7 @@ impl Default for Education {
     }
 }
 
-impl Default for Skill {
+impl Default for Skills {
     fn default() -> Self {
         Self {
             field_id: None,

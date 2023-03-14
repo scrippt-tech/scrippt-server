@@ -51,12 +51,14 @@ pub async fn change_profile(
         log::debug!("Invalid id");
         return HttpResponse::BadRequest().body("Invalid id");
     }
-    log::debug!("Profile: {:?}", profile[0].value);
+    log::debug!("Profile: {:#?}", profile[0].value);
 
     for order in profile.iter() {
         let target = order.target.to_owned();
         let value = order.value.to_owned();
         let date = chrono::Utc::now().timestamp();
+        log::debug!("Target: {:#?}", target);
+        log::debug!("Value: {:#?}", value);
         match order.op.as_str() {
             "add" => {
                 match db.add_profile_field(&id, target, value, date).await {
