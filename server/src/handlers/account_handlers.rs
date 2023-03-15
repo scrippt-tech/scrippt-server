@@ -202,9 +202,11 @@ pub async fn create_account(
     // status in the redis cache
     let val = redis.get(&acc.email).await.unwrap();
     if val.is_empty() {
+        log::debug!("Account has not been submitted for verification or verification window has expired. Please try to verify again.");
         return HttpResponse::BadRequest().body("Account has not been submitted for verification or verification window has expired. Please try to verify again.");
     }
     if val.split(":").collect::<Vec<&str>>()[1] == "pending" {
+        log::debug!("Account has not been verified yet");
         return HttpResponse::BadRequest().body("Account has not been verified yet");
     }
 
@@ -214,11 +216,17 @@ pub async fn create_account(
     // It is optional because we can create an account with an external provider
     let password = match acc.password.as_ref() {
         Some(p) => p,
-        None => return HttpResponse::BadRequest().body("Password is required"),
+        None => {
+            log::debug!("Password is required");
+            return HttpResponse::BadRequest().body("Password is required");
+        }
     };
     match utils::validation::validate_signup(&acc.email, password) {
         Ok(_) => (),
-        Err(e) => return HttpResponse::BadRequest().json(e.to_string()),
+        Err(e) => {
+            log::debug!("Invalid signup: {}", e);
+            return HttpResponse::BadRequest().json(e.to_string());
+        }
     };
 
     let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set"); // set this to global variable
@@ -262,7 +270,14 @@ pub async fn create_account(
     // Delete the verification code from the redis cache
     redis.del(&acc.email).await.unwrap();
 
-    // Send verification email to user
+    // Return early if we are in test environment
+    if std::env::var("ENV").unwrap() == "test" {
+        return match result {
+            Ok(_result) => HttpResponse::Created().json(response),
+            Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
+        };
+    }
+
     match utils::sendgrid::send_account_created(acc.email.as_str(), acc.name.as_str()).await {
         Ok(_) => (),
         Err(e) => log::error!("Error sending email: {:?}", e),
@@ -427,6 +442,11 @@ pub async fn get_verification_code(
         Err(e) => return HttpResponse::InternalServerError().json(e.to_string()),
     }
     redis.expire(&email, expiration_time).await.unwrap();
+
+    // Return early if in test environment
+    if env::var("ENV").unwrap() == "test" {
+        return HttpResponse::Ok().json("Verification code sent");
+    }
 
     let result = utils::sendgrid::send_email_verification(&email, &name, &code).await;
     match result {
