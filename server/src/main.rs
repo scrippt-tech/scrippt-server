@@ -7,7 +7,7 @@ use actix_web::{
 use dotenv::dotenv;
 use env_logger::fmt::Color;
 use log;
-use server::handlers::account_handlers;
+use server::handlers::{account_handlers, profile_handlers};
 use server::repository::{database::DatabaseRepository, redis::RedisRepository};
 use std::env;
 use std::io::Write;
@@ -84,7 +84,7 @@ async fn main() -> std::io::Result<()> {
                     .service(account_handlers::verify_email),
             )
             .route("/health", web::get().to(|| async { "OK" }))
-        // .service(web::scope("/api/profile").service(profile_handlers::change_profile))
+            .service(web::scope("/profile").service(profile_handlers::change_profile))
         // .service(web::scope("/api/document").service(document_handlers::document))
     })
     .bind("0.0.0.0:8080")?

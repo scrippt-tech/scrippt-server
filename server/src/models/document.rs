@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DocumentInfo {
-    pub title: String,
+    pub title: String, // Unique
     pub prompt: String,
     pub content: String,
     pub rating: Option<i32>,

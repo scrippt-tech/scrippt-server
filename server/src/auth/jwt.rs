@@ -52,7 +52,7 @@ pub struct GoogleAuthClaims {
     pub nbf: usize,
     pub aud: String,
     pub sub: String,
-    pub hd: String,
+    pub hd: Option<String>,
     pub email: String,
     pub email_verified: bool,
     pub azp: String,

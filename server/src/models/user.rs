@@ -20,6 +20,15 @@ pub struct User {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct Account {
+    pub id: String,
+    pub name: String,
+    pub email: String,
+    pub profile: Profile,
+    pub documents: Vec<DocumentInfo>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AccountPatch {
     pub path: String,
     pub value: String,

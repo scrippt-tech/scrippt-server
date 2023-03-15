@@ -10,8 +10,8 @@ use mongodb::{
 use serde_json;
 
 use crate::models::document::DocumentInfo;
-use crate::models::profile::Profile;
-use crate::models::user::{AccountPatch, User};
+use crate::models::profile::{GetFieldId, Profile, ProfileValue, UpdateFieldId};
+use crate::models::user::{Account, AccountPatch, User};
 
 pub struct DatabaseRepository {
     pub user_collection: Collection<User>,
@@ -42,14 +42,23 @@ impl DatabaseRepository {
     }
 
     /// Get a user account by id
-    pub async fn get_account(&self, id: &str) -> Result<User, Error> {
+    pub async fn get_account(&self, id: &str) -> Result<Account, Error> {
         let obj_id = ObjectId::parse_str(id)
             .ok()
             .expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
         let account_detail = self.user_collection.find_one(filter, None).await;
         match account_detail {
-            Ok(Some(account)) => Ok(account),
+            Ok(Some(account)) => {
+                let account = Account {
+                    id: account.id.unwrap().to_hex(),
+                    name: account.name,
+                    email: account.email,
+                    profile: account.profile.unwrap(),
+                    documents: account.documents.unwrap(),
+                };
+                Ok(account)
+            }
             Ok(None) => Err(Error::DeserializationError {
                 message: "Account not found".to_string(),
             }),
@@ -63,16 +72,14 @@ impl DatabaseRepository {
     }
 
     /// Get a user account by email
-    pub async fn get_account_by_email(&self, email: &str) -> Result<User, Error> {
+    pub async fn get_account_by_email(&self, email: &str) -> Result<Option<User>, Error> {
         let filter = doc! {"email": email.to_lowercase()};
         let account_detail = self.user_collection.find_one(filter, None).await;
         match account_detail {
-            Ok(Some(account)) => Ok(account),
-            Ok(None) => Err(Error::DeserializationError {
-                message: "Account not found".to_string(),
-            }),
+            Ok(account) => Ok(account),
             Err(e) => {
                 log::error!("Failed to get account by email {}", email);
+                log::error!("Error: {}", e);
                 Err(Error::DeserializationError {
                     message: e.to_string(),
                 })
@@ -189,7 +196,7 @@ impl DatabaseRepository {
         &self,
         id: &String,
         target: String,
-        mut value: serde_json::Value,
+        mut value: ProfileValue,
         date: i64,
     ) -> Result<UpdateResult, Error> {
         let obj_id = ObjectId::parse_str(id)
@@ -197,10 +204,12 @@ impl DatabaseRepository {
             .expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
         let target = format!("profile.{}", target);
-        value["field_id"] = serde_json::Value::String(ObjectId::new().to_hex());
+        value.update_field_id(Some(ObjectId::new().to_hex()));
+        let value = serde_json::to_value(value).unwrap();
+
         let update = doc! {
             "$push": {
-                target: to_bson(&value).unwrap()
+                target: to_bson(&value["value"]).unwrap()
             },
             "$set": {
                 "profile.date_updated": date,
@@ -228,7 +237,7 @@ impl DatabaseRepository {
         &self,
         id: &String,
         target: String,
-        value: serde_json::Value,
+        value: ProfileValue,
         date: i64,
     ) -> Result<UpdateResult, Error> {
         let obj_id = ObjectId::parse_str(id)
@@ -238,7 +247,7 @@ impl DatabaseRepository {
         let field = format!("profile.{}.$", target); // profile.target.$
         let filter = doc! {
             "_id": obj_id,
-            field_id: value["field_id"].to_string()
+            field_id: value.get_field_id().unwrap(),
         };
         let update = doc! {
             "$set": {
@@ -268,14 +277,14 @@ impl DatabaseRepository {
         &self,
         id: &String,
         target: String,
-        value: serde_json::Value,
+        value: ProfileValue,
         date: i64,
     ) -> Result<UpdateResult, Error> {
         let obj_id = ObjectId::parse_str(id)
             .ok()
             .expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
-        let field_id = value["field_id"].as_str().unwrap();
+        let field_id = value.get_field_id().unwrap();
         let target = format!("profile.{}", target);
         // pull object from target array where skill = name
         let update = doc! {

@@ -1,19 +1,19 @@
 use actix_web::{
     patch,
-    web::{Data, Json, Path},
+    web::{Data, Json},
     HttpResponse,
 };
 use serde::{Deserialize, Serialize};
-use serde_json;
 
 use crate::auth::user_auth::AuthorizationService;
+use crate::models::profile::ProfileValue;
 use crate::repository::database::DatabaseRepository;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct ProfilePatch {
     pub op: String,
-    pub path: String,
-    pub value: serde_json::Value,
+    pub target: String,
+    pub value: ProfileValue,
 }
 
 /// # Change a user profile
@@ -24,7 +24,7 @@ pub struct ProfilePatch {
 /// ```
 /// {
 ///    "op": "add" | "update" | "remove",
-///    "path": <field>,
+///    "target": "experience" | "education" | "skills",
 ///    "value": <new value>
 /// }
 /// ```
@@ -40,23 +40,26 @@ pub struct ProfilePatch {
 ///     "date_updated": Int,
 /// }
 /// ```
-#[patch("/{id}")]
+#[patch("")]
 pub async fn change_profile(
     db: Data<DatabaseRepository>,
-    path: Path<String>,
     profile: Json<Vec<ProfilePatch>>,
-    _auth: AuthorizationService,
+    auth: AuthorizationService,
 ) -> HttpResponse {
-    let id = path.into_inner();
+    let id = auth.id;
     if id.is_empty() {
+        log::debug!("Invalid id");
         return HttpResponse::BadRequest().body("Invalid id");
     }
+    log::debug!("Profile: {:#?}", profile[0].value);
 
-    for change in profile.iter() {
-        let target = change.path.to_owned();
-        let value = change.value.to_owned();
+    for order in profile.iter() {
+        let target = order.target.to_owned();
+        let value = order.value.to_owned();
         let date = chrono::Utc::now().timestamp();
-        match change.op.as_str() {
+        log::debug!("Target: {:#?}", target);
+        log::debug!("Value: {:#?}", value);
+        match order.op.as_str() {
             "add" => {
                 match db.add_profile_field(&id, target, value, date).await {
                     Ok(_result) => continue,
@@ -76,10 +79,13 @@ pub async fn change_profile(
                 };
             }
             _ => {
+                log::debug!("Invalid operation");
                 return HttpResponse::BadRequest().body("Invalid operation");
             }
         }
     }
-    let new_profile = db.get_profile(&id).await.unwrap();
-    HttpResponse::Ok().json(new_profile)
+    match db.get_account(&id).await {
+        Ok(user) => HttpResponse::Ok().json(user),
+        Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
+    }
 }

@@ -25,14 +25,6 @@ struct AuthResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct UserResponse {
-    pub id: String,
-    pub name: String,
-    pub email: String,
-    pub profile: Profile,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct Credentials {
     pub email: String,
     pub password: String,
@@ -76,17 +68,10 @@ pub async fn get_account_by_id(
         return HttpResponse::BadRequest().body("Invalid id");
     }
 
-    let acc = db.get_account(&id).await;
-
-    match acc {
+    match db.get_account(&id).await {
         Ok(acc) => {
-            let response = UserResponse {
-                id: acc.id.unwrap().to_hex(),
-                name: acc.name,
-                email: acc.email,
-                profile: acc.profile.unwrap_or_default(),
-            };
-            HttpResponse::Ok().json(response)
+            log::debug!("Account: {:?}", acc);
+            HttpResponse::Ok().json(acc)
         }
         Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
     }
@@ -142,7 +127,7 @@ pub async fn update_account(
             if acc.matched_count == 1 {
                 HttpResponse::Ok().json(res)
             } else {
-                HttpResponse::BadRequest().body("Account not found")
+                HttpResponse::NotFound().body("Account not found")
             }
         }
         Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
@@ -200,11 +185,17 @@ pub async fn create_account(
     redis: Data<RedisRepository>,
     acc: Json<User>,
 ) -> HttpResponse {
-    let exists = db.get_account_by_email(&acc.email).await;
-    log::debug!("Account exists: {:?}", exists);
-    match exists {
-        Ok(_) => return HttpResponse::Conflict().body("Account already exists"),
-        Err(_) => (),
+    let user = db.get_account_by_email(&acc.email).await;
+    match user {
+        Ok(user) => {
+            if user.is_some() {
+                return HttpResponse::Conflict().body("Account already exists");
+            }
+        }
+        Err(_) => {
+            return HttpResponse::InternalServerError()
+                .body("Internal server error: failed to get account")
+        }
     }
 
     // Check if account was verified by looking up the verification code
@@ -285,12 +276,17 @@ pub async fn create_account(
 
 #[post("/auth/login")]
 pub async fn login_account(db: Data<DatabaseRepository>, cred: Json<Credentials>) -> HttpResponse {
-    let exists = db.get_account_by_email(&cred.email).await;
-    if exists.is_err() {
-        return HttpResponse::Unauthorized().body("Account does not exist");
-    }
-
-    let account = exists.unwrap();
+    let user = db.get_account_by_email(&cred.email).await;
+    let account = match user {
+        Ok(user) => match user {
+            Some(user) => user,
+            None => return HttpResponse::NotFound().body("Account not found"),
+        },
+        Err(_) => {
+            return HttpResponse::InternalServerError()
+                .body("Internal server error: failed to get account")
+        }
+    };
 
     // if password is None, then the account was created with an external provider
     // and we can't login with it
@@ -328,53 +324,60 @@ pub async fn authenticate_external_account(
     let email = google_claims.email;
 
     // Check if the account already exists
-    let exists = db.get_account_by_email(&email).await;
-    match exists {
-        Ok(_) => {
-            // Account exists, returning token
-            let id = exists.unwrap().id.unwrap().to_hex();
-            let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
-            HttpResponse::Ok().json(AuthResponse { id, token })
+    match db.get_account_by_email(&email).await {
+        Ok(user) => {
+            match user {
+                Some(user) => {
+                    // Account exists, returning token
+                    let id = user.id.unwrap().to_hex();
+                    let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
+                    HttpResponse::Ok().json(AuthResponse { id, token })
+                }
+                None => {
+                    // Account does not exist, creating new account
+                    let empty_profile = Profile {
+                        education: vec![],
+                        experience: vec![],
+                        skills: vec![],
+                        date_updated: Some(chrono::Utc::now().timestamp()),
+                    };
+
+                    let data = User {
+                        id: None,
+                        name: google_claims.name,
+                        email,
+                        external_id: Some(google_claims.sub),
+                        external_provider: Some("google".to_string()),
+                        password: None,
+                        profile: Some(empty_profile),
+                        documents: Some(vec![]),
+                        date_created: Some(chrono::Utc::now().timestamp()),
+                        date_updated: Some(chrono::Utc::now().timestamp()),
+                    };
+
+                    let result = db.create_account(data).await;
+
+                    let id = result
+                        .as_ref()
+                        .unwrap()
+                        .inserted_id
+                        .as_object_id()
+                        .unwrap()
+                        .to_hex();
+                    let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
+
+                    let response = AuthResponse { id, token };
+
+                    match result {
+                        Ok(_result) => HttpResponse::Created().json(response),
+                        Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
+                    }
+                }
+            }
         }
         Err(_) => {
-            // Account does not exist, creating new account
-            let empty_profile = Profile {
-                education: vec![],
-                experience: vec![],
-                skills: vec![],
-                date_updated: Some(chrono::Utc::now().timestamp()),
-            };
-
-            let data = User {
-                id: None,
-                name: google_claims.name,
-                email,
-                external_id: Some(google_claims.sub),
-                external_provider: Some("google".to_string()),
-                password: None,
-                profile: Some(empty_profile),
-                documents: Some(vec![]),
-                date_created: Some(chrono::Utc::now().timestamp()),
-                date_updated: Some(chrono::Utc::now().timestamp()),
-            };
-
-            let result = db.create_account(data).await;
-
-            let id = result
-                .as_ref()
-                .unwrap()
-                .inserted_id
-                .as_object_id()
-                .unwrap()
-                .to_hex();
-            let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
-
-            let response = AuthResponse { id, token };
-
-            match result {
-                Ok(_result) => HttpResponse::Created().json(response),
-                Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
-            }
+            return HttpResponse::InternalServerError()
+                .body("Internal server error: failed to get account")
         }
     }
 }
@@ -400,9 +403,17 @@ pub async fn get_verification_code(
     let email = query.email.to_owned();
 
     // Check if email exists in the database, if it does, return an error
-    let exists = db.get_account_by_email(&email).await;
-    if !exists.is_err() {
-        return HttpResponse::BadRequest().body("Email already exists");
+    let user = db.get_account_by_email(&email).await;
+    match user {
+        Ok(user) => {
+            if user.is_some() {
+                return HttpResponse::Conflict().body("Account already exists");
+            }
+        }
+        Err(_) => {
+            return HttpResponse::InternalServerError()
+                .body("Internal server error: failed to get account")
+        }
     }
 
     let code = utils::validation::generate_verification_code();
@@ -448,7 +459,7 @@ pub async fn verify_email(
             if stored_code == code && status == "pending" {
                 let new_value = format!("{}:{}", stored_code, "used");
                 redis.set(&email, &new_value).await.unwrap();
-                HttpResponse::NoContent().finish()
+                HttpResponse::Ok().json("Email verified")
             } else if status == "used" {
                 HttpResponse::BadRequest().body("This code has already been used.")
             } else {
