@@ -204,7 +204,7 @@ impl DatabaseRepository {
             .expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
         let target = format!("profile.{}", target);
-        value.update_field_id(Some(ObjectId::new()));
+        value.update_field_id(Some(ObjectId::new().to_hex()));
         let value = serde_json::to_value(value).unwrap();
 
         let update = doc! {
@@ -247,7 +247,7 @@ impl DatabaseRepository {
         let field = format!("profile.{}.$", target); // profile.target.$
         let filter = doc! {
             "_id": obj_id,
-            field_id: value.get_field_id().unwrap().to_hex().to_string(),
+            field_id: value.get_field_id().unwrap(),
         };
         let update = doc! {
             "$set": {
