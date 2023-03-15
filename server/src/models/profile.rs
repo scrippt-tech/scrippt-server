@@ -22,6 +22,7 @@ pub enum ExperienceType {
 pub struct Experience {
     pub field_id: Option<String>,
     pub name: String,
+    #[serde(rename = "type")]
     pub type_: ExperienceType, // Do we care about this?
     pub at: String,
     pub current: bool,
@@ -59,79 +60,36 @@ pub trait UpdateFieldId {
     fn update_field_id(&mut self, new_id: Option<String>);
 }
 
-impl UpdateFieldId for Experience {
-    fn update_field_id(&mut self, new_id: Option<String>) {
-        self.field_id = new_id;
-    }
-}
-
-impl UpdateFieldId for Education {
-    fn update_field_id(&mut self, new_id: Option<String>) {
-        self.field_id = new_id;
-    }
-}
-
-impl UpdateFieldId for Skills {
-    fn update_field_id(&mut self, new_id: Option<String>) {
-        self.field_id = new_id;
-    }
-}
-
-impl UpdateFieldId for String {
-    fn update_field_id(&mut self, new_id: Option<String>) {
-        if let Some(id) = new_id {
-            self.replace_range(.., &id);
-        }
-    }
-}
-
 impl UpdateFieldId for ProfileValue {
     fn update_field_id(&mut self, new_id: Option<String>) {
         match self {
-            ProfileValue::Experience(exp) => exp.update_field_id(new_id),
-            ProfileValue::Education(edu) => edu.update_field_id(new_id),
-            ProfileValue::Skills(skill) => skill.update_field_id(new_id),
-            ProfileValue::FieldId(field_id) => field_id.update_field_id(new_id),
+            ProfileValue::Experience(exp) => {
+                exp.field_id = new_id;
+            }
+            ProfileValue::Education(edu) => {
+                edu.field_id = new_id;
+            }
+            ProfileValue::Skills(skill) => {
+                skill.field_id = new_id;
+            }
+            ProfileValue::FieldId(field_id) => {
+                *field_id = new_id.unwrap();
+            }
         }
     }
 }
 
-/// This is a trait that allows us to get the field_id of a ProfileValue
 pub trait GetFieldId {
     fn get_field_id(&self) -> Option<String>;
-}
-
-impl GetFieldId for Experience {
-    fn get_field_id(&self) -> Option<String> {
-        Some(self.field_id.clone().unwrap())
-    }
-}
-
-impl GetFieldId for Education {
-    fn get_field_id(&self) -> Option<String> {
-        Some(self.field_id.clone().unwrap())
-    }
-}
-
-impl GetFieldId for Skills {
-    fn get_field_id(&self) -> Option<String> {
-        Some(self.field_id.clone().unwrap())
-    }
-}
-
-impl GetFieldId for String {
-    fn get_field_id(&self) -> Option<String> {
-        Some(self.to_string())
-    }
 }
 
 impl GetFieldId for ProfileValue {
     fn get_field_id(&self) -> Option<String> {
         match self {
-            ProfileValue::Experience(exp) => exp.get_field_id(),
-            ProfileValue::Education(edu) => edu.get_field_id(),
-            ProfileValue::Skills(skill) => skill.get_field_id(),
-            ProfileValue::FieldId(field_id) => field_id.get_field_id(),
+            ProfileValue::Experience(exp) => exp.field_id.clone(),
+            ProfileValue::Education(edu) => edu.field_id.clone(),
+            ProfileValue::Skills(skill) => skill.field_id.clone(),
+            ProfileValue::FieldId(field_id) => Some(field_id.clone()),
         }
     }
 }
