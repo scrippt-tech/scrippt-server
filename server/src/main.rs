@@ -16,6 +16,19 @@ use std::io::Write;
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
 
+    // Check for environment variables
+    env::var("MONGO_URI").expect("MONGO_URI must be set");
+    env::var("REDIS_URI").expect("REDIS_URI must be set");
+    env::var("JWT_SECRET").expect("JWT_SECRET must be set");
+    env::var("GOOGLE_CLIENT_ID").expect("GOOGLE_CLIENT_ID must be set");
+    env::var("GOOGLE_JWK_PATH").expect("GOOGLE_JWK_PATH must be set");
+    env::var("SENDGRID_API_KEY").expect("SENDGRID_API_KEY must be set");
+    env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY must be set");
+    env::var("ENV").expect("ENV must be set");
+    env::var("APP_NAME").expect("APP_NAME must be set");
+    env::var("DOMAIN").expect("DOMAIN must be set");
+
+    // Build logger
     env_logger::builder()
         .format(|buf, record| {
             let level = record.level();
@@ -45,15 +58,12 @@ async fn main() -> std::io::Result<()> {
 
     log::info!("Starting server on port 8080...");
 
-    let mongo_uri = env::var("MONGO_URI").expect("MONGO_URI must be set");
-    let redis_uri = env::var("REDIS_URI").expect("REDIS_URI must be set");
-
     // Database
-    let db = DatabaseRepository::new(&mongo_uri).await;
+    let db = DatabaseRepository::new(&env::var("MONGO_URI").unwrap()).await;
     let data = web::Data::new(db);
 
     // Redis
-    let redis = RedisRepository::new(&redis_uri);
+    let redis = RedisRepository::new(&env::var("REDIS_URI").unwrap());
     let redis_data = web::Data::new(redis);
 
     HttpServer::new(move || {
