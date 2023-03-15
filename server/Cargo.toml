@@ -27,9 +27,12 @@ rust-argon2 = "1.0"
 reqwest = { version = "0.11.14", features = ["json", "blocking"] }
 email-address-parser = "1.0.3"
 rand = "0.8.3"
-more-asserts = "0.3.1"
 sendgrid = { version = "0.18.1", features = ["async"] }
 async-openai = "0.9.4"
+
+[dev-dependencies]
+more-asserts = "0.3.1"
+assert-json-diff = "2.0.2"
 
 [[bin]]
 name = "server"

@@ -39,13 +39,21 @@ export ENV="test"
 # Use a single thread for testing to prevent race conditions
 export RUST_TEST_THREADS=1
 
+# If argument is null set $TESTS to all tests
+if [ -z "${1:-}" ]; then
+    TESTS="test_*"
+# If argument is not null set $TESTS to the argument
+else
+    TESTS="test_$1"
+fi
+
 # Run the tests
 # if LOG_LEVEL is set, use it
 if [ -n "${LOG_LEVEL:-}" ]; then
-    RUST_LOG=$LOG_LEVEL cargo test --test 'test_*'
-# if LOG_LEVEL is not set, use info
+    RUST_LOG=$LOG_LEVEL cargo test --test $TESTS
+# if LOG_LEVEL is not set, don't use it
 elif [ -z "${LOG_LEVEL:-}" ]; then
-    RUST_LOG=info cargo test --test 'test_*'
+    cargo test --test $TESTS
 # if LOG_LEVEL is invalid, exit with an error
 else
     echo "Invalid log level"
