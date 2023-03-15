@@ -4,13 +4,15 @@ use mongodb::{
     bson::oid::ObjectId,
     bson::{doc, extjson::de::Error},
     options::ClientOptions,
+    options::FindOneOptions,
     results::{DeleteResult, InsertOneResult, UpdateResult},
     Client, Collection,
 };
 use serde_json;
 
 use crate::models::document::DocumentInfo;
-use crate::models::profile::{GetFieldId, Profile, ProfileValue, UpdateFieldId};
+use crate::models::generate::GenerateData;
+use crate::models::profile::{GetFieldId, ProfileValue, UpdateFieldId};
 use crate::models::user::{Account, AccountPatch, User};
 
 pub struct DatabaseRepository {
@@ -161,29 +163,6 @@ impl DatabaseRepository {
             },
             Err(e) => {
                 log::error!("Failed to delete account {}", id);
-                Err(Error::DeserializationError {
-                    message: e.to_string(),
-                })
-            }
-        }
-    }
-
-    /// Gets a user profile field from the database by filtering on the user id
-    pub async fn get_profile(&self, id: &String) -> Result<Profile, Error> {
-        let obj_id = ObjectId::parse_str(id)
-            .ok()
-            .expect("Failed to parse object id");
-        let filter = doc! {"_id": obj_id};
-        let result = self.user_collection.find_one(filter, None).await;
-        match result {
-            Ok(Some(user)) => user.profile.ok_or(Error::DeserializationError {
-                message: "Profile not found".to_string(),
-            }),
-            Ok(None) => Err(Error::DeserializationError {
-                message: "Profile not found".to_string(),
-            }),
-            Err(e) => {
-                log::error!("Failed to get profile {}", id);
                 Err(Error::DeserializationError {
                     message: e.to_string(),
                 })
@@ -354,8 +333,69 @@ impl DatabaseRepository {
         }
     }
 
+    pub async fn get_profile_data(
+        &self,
+        id: &str,
+        skills: &Vec<String>,
+        experience: &Vec<String>,
+    ) -> Result<GenerateData, Error> {
+        let filer = doc! {"_id": ObjectId::parse_str(id).unwrap()};
+        let find_options = FindOneOptions::builder()
+            .projection(doc! {
+                "profile": {
+                    "$filter": {
+                        "input": "$profile",
+                        "cond": {
+                            "$and": [
+                                {
+                                    "$or": [
+                                        { "skills.field_id": { "$in": skills } },
+                                        { "$eq": [ skills, [] ] }
+                                    ]
+                                },
+                                {
+                                    "$or": [
+                                        { "experience.field_id": { "$in": experience } },
+                                        { "$eq": [ experience, [] ] }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            })
+            .build();
+        let result = self.user_collection.find_one(filer, find_options).await;
+        log::debug!("Result: {:?}", result);
+
+        match result {
+            Ok(result) => match result {
+                Some(document) => {
+                    let profile = document.profile.unwrap();
+                    Ok(GenerateData {
+                        skills: profile.skills,
+                        experience: profile.experience,
+                        education: profile.education,
+                    })
+                }
+                None => Err(Error::DeserializationError {
+                    message: "Failed to find document".to_string(),
+                }),
+            },
+            Err(e) => {
+                log::error!("Failed to get profile data for account {}", id);
+                Err(Error::DeserializationError {
+                    message: e.to_string(),
+                })
+            }
+        }
+    }
+
     #[allow(dead_code)]
     pub async fn drop_database(&self) -> Result<(), Error> {
+        if std::env::var("ENV").unwrap() != "test" {
+            panic!("Cannot drop database in non-test environment")
+        }
         let result = self.user_collection.drop(None).await;
         match result {
             Ok(_) => Ok(()),
