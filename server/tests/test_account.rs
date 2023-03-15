@@ -648,8 +648,8 @@ async fn test_create_account_verified() {
 /// Then tries to verify the email address with an invalid code
 #[actix_rt::test]
 async fn test_invalid_verification() {
-    let email = ""; // TODO: Fill in an actual email address for testing
-    let name = ""; // TODO: Fill in an actual name for testing
+    let email = "johndoe@gmail.com";
+    let name = "John";
     let app = get_app().await;
     let server = test::init_service(app).await;
 
