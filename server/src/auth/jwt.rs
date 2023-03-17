@@ -1,4 +1,3 @@
-use crate::models::user::Claims;
 use bson::Uuid;
 use jsonwebtoken::{
     decode, decode_header, encode,
@@ -8,9 +7,19 @@ use jsonwebtoken::{
 };
 use reqwest;
 use serde::{Deserialize, Serialize};
-// #[cfg(feature = "json")]
 use serde_json;
 use std::{fs, path::Path};
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Claims {
+    pub iss: String,
+    pub sub: String,
+    pub aud: String,
+    pub exp: usize,
+    pub nbf: usize,
+    pub iat: usize,
+    pub jti: String,
+}
 
 /// Encode a JWT with the given claims.
 pub fn encode_jwt(iss: String, sub: String, aud: String, secret: &str) -> String {

@@ -10,11 +10,13 @@ use mongodb::{
 };
 use serde_json;
 
+use crate::handlers::types::AccountPatch;
+
 use crate::models::document::DocumentInfo;
 use crate::models::generate::GenerateData;
 use crate::models::profile::ProfileValue;
 use crate::models::traits::{GetFieldId, UpdateFieldId};
-use crate::models::user::{Account, AccountPatch, User};
+use crate::models::user::{Account, User};
 
 pub struct DatabaseRepository {
     pub user_collection: Collection<User>,

@@ -27,20 +27,3 @@ pub struct Account {
     pub profile: Profile,
     pub documents: Vec<DocumentInfo>,
 }
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct AccountPatch {
-    pub path: String,
-    pub value: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Claims {
-    pub iss: String,
-    pub sub: String,
-    pub aud: String,
-    pub exp: usize,
-    pub nbf: usize,
-    pub iat: usize,
-    pub jti: String,
-}

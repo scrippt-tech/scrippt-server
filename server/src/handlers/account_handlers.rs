@@ -3,49 +3,21 @@ use actix_web::{
     web::{Data, Json, Query},
     HttpResponse,
 };
-use serde::{Deserialize, Serialize};
 use std::env;
 
 use crate::auth::user_auth::AuthorizationService;
+use crate::handlers::types::{
+    AccountPatch, AuthResponse, Credentials, ExternalAccountQuery, VerificationCodeQuery,
+    VerificationQuery,
+};
 use crate::utils;
 use crate::{
     auth::jwt::{decode_google_token_id, encode_jwt, GoogleAuthClaims},
     repository::redis::RedisRepository,
 };
 use crate::{
-    models::profile::Profile,
-    models::user::{AccountPatch, User},
-    repository::database::DatabaseRepository,
+    models::profile::Profile, models::user::User, repository::database::DatabaseRepository,
 };
-
-#[derive(Debug, Serialize, Deserialize)]
-struct AuthResponse {
-    pub id: String,
-    pub token: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Credentials {
-    pub email: String,
-    pub password: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ExternalAccountQuery {
-    pub token_id: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct VerificationCodeQuery {
-    pub name: String,
-    pub email: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct VerificationQuery {
-    pub email: String,
-    pub code: String,
-}
 
 /// API route to get a user's account by id. Returns a user's account information.
 /// ### Response body (if successful):
@@ -214,14 +186,14 @@ pub async fn create_account(
     // Checks if the password is valid since it is optional in the User model
     // and we don't want to store an empty password
     // It is optional because we can create an account with an external provider
-    let password = match acc.password.as_ref() {
+    let password = match acc.password.to_owned() {
         Some(p) => p,
         None => {
             log::debug!("Password is required");
             return HttpResponse::BadRequest().body("Password is required");
         }
     };
-    match utils::validation::validate_signup(&acc.email, password) {
+    match utils::validation::validate_signup(&acc.email, &password) {
         Ok(_) => (),
         Err(e) => {
             log::debug!("Invalid signup: {}", e);
@@ -230,7 +202,7 @@ pub async fn create_account(
     };
 
     let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set"); // set this to global variable
-    let hash_password = utils::validation::generate_hash(password);
+    let hash_password = utils::validation::generate_hash(&password);
 
     let empty_profile = Profile {
         education: vec![],
@@ -261,8 +233,8 @@ pub async fn create_account(
         .as_object_id()
         .unwrap()
         .to_hex();
-    let domain = env::var("DOMAIN").expect("DOMAIN must be set");
-    let app_name = env::var("APP_NAME").expect("APP_NAME must be set");
+    let domain = env::var("DOMAIN").unwrap();
+    let app_name = env::var("APP_NAME").unwrap();
     let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
 
     let response = AuthResponse { id, token };
