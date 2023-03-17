@@ -12,7 +12,8 @@ use serde_json;
 
 use crate::models::document::DocumentInfo;
 use crate::models::generate::GenerateData;
-use crate::models::profile::{GetFieldId, ProfileValue, UpdateFieldId};
+use crate::models::profile::ProfileValue;
+use crate::models::traits::{GetFieldId, UpdateFieldId};
 use crate::models::user::{Account, AccountPatch, User};
 
 pub struct DatabaseRepository {
