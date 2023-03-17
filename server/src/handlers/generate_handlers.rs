@@ -1,16 +1,16 @@
-use core::fmt;
-
-use actix_web::{
-    post,
-    web::{Data, Json},
-    HttpResponse,
+use actix_web::{post, web::Json, HttpResponse};
+use async_openai::{
+    error::OpenAIError,
+    types::{
+        ChatCompletionRequestMessageArgs, CreateChatCompletionRequestArgs,
+        CreateChatCompletionResponse, Role,
+    },
+    Client,
 };
-use async_openai::Client;
 use serde::{Deserialize, Serialize};
 
 use crate::auth::user_auth::AuthorizationService;
 use crate::models::profile::Profile;
-use crate::repository::database::DatabaseRepository;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Highlights {
@@ -20,33 +20,80 @@ pub struct Highlights {
     pub job_url: String,
 }
 
-fn generate_prompt(prompt: String, profile: Profile, additional: String) -> String {
-    let mut prompt = prompt;
-    prompt.push_str(&format!(
-        r#"
-        Generate an answer to the following prompt: {}\nUse the following information about candidate: Education: {:#?}\nExperience: {:#?}Skills: {:#?}\nAdditional information: {:#?}.\nAnswer the prompt in a way that highlights the candidate's strengths and experience."#,
-        prompt, profile.education, profile.experience, profile.skills, additional
-    ));
-    prompt
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GenerateResponse {
+    pub response: String,
+}
+
+async fn generate_request(
+    prompt: String,
+    profile: Profile,
+    additional: String,
+) -> Result<CreateChatCompletionResponse, OpenAIError> {
+    let client = Client::new();
+    let request = CreateChatCompletionRequestArgs::default()
+        .max_tokens(1024u16)
+        .model("gpt-3.5-turbo")
+        .messages([
+            ChatCompletionRequestMessageArgs::default()
+                .role(Role::System)
+                .content(
+                    "You are a candidate who is applying for a job at a company. 
+                Following you will receive some highlights about your background. 
+                You will then then receive a prompt that you will need to answer. 
+                Your answer should highlight your strengths and experience.",
+                )
+                .build()?,
+            ChatCompletionRequestMessageArgs::default()
+                .role(Role::System)
+                .content(format!("Experience: {:#?}", profile.experience))
+                .build()?,
+            ChatCompletionRequestMessageArgs::default()
+                .role(Role::System)
+                .content(format!("Education: {:#?}", profile.education))
+                .build()?,
+            ChatCompletionRequestMessageArgs::default()
+                .role(Role::System)
+                .content(format!("Skills: {:#?}", profile.skills))
+                .build()?,
+            ChatCompletionRequestMessageArgs::default()
+                .role(Role::System)
+                .content(format!(
+                    "This is additional information about yourself: {}",
+                    additional
+                ))
+                .build()?,
+            ChatCompletionRequestMessageArgs::default()
+                .role(Role::System)
+                .content(prompt)
+                .build()?,
+        ])
+        .build()?;
+    log::debug!("Request: {:#?}", request);
+
+    Ok(client.chat().create(request).await?)
 }
 
 #[post("")]
-pub async fn generate_openai(
-    db: Data<DatabaseRepository>,
-    data: Json<Highlights>,
-    auth: AuthorizationService,
-) -> HttpResponse {
-    let id = auth.id;
-    let client = Client::new();
-    let prompt = generate_prompt(
+pub async fn generate_openai(data: Json<Highlights>, _auth: AuthorizationService) -> HttpResponse {
+    let response = generate_request(
         data.prompt.clone(),
         data.profile.clone(),
         data.additional.clone(),
-    );
-    let response = client.completions().create(prompt).await;
+    )
+    .await;
+
+    let mut res: Vec<GenerateResponse> = Vec::new();
 
     match response {
-        Ok(response) => HttpResponse::Ok().json(response),
+        Ok(response) => {
+            for choice in response.choices {
+                res.push(GenerateResponse {
+                    response: choice.message.content,
+                });
+            }
+            HttpResponse::Ok().json(res)
+        }
         Err(e) => {
             log::debug!("Error: {:#?}", e);
             HttpResponse::BadRequest().body("Error")
