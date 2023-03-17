@@ -18,11 +18,12 @@ use async_openai::{
 /// # Example
 /// ```rust
 /// use server::models::profile::Profile;
+/// use server::utils::openai::generate_request;
 ///
 /// let response = generate_request(
-///    "Why do you want to work at this company?",
+///    "Why do you want to work at this company?".to_string(),
 ///    Profile::default(),
-///    "I am a hard worker and I am very passionate about this job.",
+///    "I am a hard worker and I am very passionate about this job.".to_string(),
 /// ).await;
 ///
 /// let response = response.unwrap(); // This assumes that the request was successful
