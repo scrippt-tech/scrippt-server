@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+// Start of account handler types
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthResponse {
     /// The id of the user.
@@ -50,3 +52,5 @@ pub struct VerificationQuery {
     /// The verification code sent to the user.
     pub code: String,
 }
+
+// end of account handler types
