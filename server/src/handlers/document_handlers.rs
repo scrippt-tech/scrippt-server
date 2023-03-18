@@ -1,25 +1,36 @@
 use actix_web::{
-    put,
-    web::{Data, Json, Path},
+    delete, post, put,
+    web::{Data, Json},
     HttpResponse,
 };
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
-    auth::user_auth::AuthorizationService,
-    models::document::{DocumentInfo, DocumentRequest},
+    auth::user_auth::AuthorizationService, models::document::DocumentInfo,
     repository::database::DatabaseRepository,
 };
 
-#[put("/{id}")]
-pub async fn document(
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DocumentRequest {
+    pub title: String,
+    pub prompt: String,
+    pub content: String,
+}
+
+#[post("")]
+pub async fn create_document(
     db: Data<DatabaseRepository>,
-    path: Path<String>,
     doc: Json<DocumentRequest>,
-    _auth: AuthorizationService,
+    auth: AuthorizationService,
 ) -> HttpResponse {
-    let id = path.into_inner();
+    let id = auth.id;
     if id.is_empty() {
         return HttpResponse::BadRequest().body("Invalid id");
+    }
+
+    if db.document_exists(&doc.title).await.unwrap() {
+        return HttpResponse::Conflict().body("Document already exists");
     }
 
     let new_doc = DocumentInfo {
@@ -31,13 +42,90 @@ pub async fn document(
         date_updated: Some(chrono::Utc::now().timestamp()),
     };
 
-    if doc.op == "new" {
-        let date = chrono::Utc::now().timestamp();
-        match db.add_document(&id, new_doc, date).await {
-            Ok(_result) => HttpResponse::Ok().body("Document created"),
-            Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
+    match db.add_document(&id, new_doc).await {
+        Ok(result) => {
+            if result.matched_count == 1 {
+                match db.get_account(&id).await {
+                    Ok(user) => HttpResponse::Ok().json(user),
+                    Err(e) => {
+                        log::error!("Error: {:#?}", e);
+                        HttpResponse::InternalServerError().json(e.to_string())
+                    }
+                }
+            } else {
+                HttpResponse::InternalServerError().body("Error")
+            }
         }
-    } else {
-        return HttpResponse::BadRequest().body("Invalid operation");
+        Err(e) => {
+            log::error!("Error: {:#?}", e);
+            HttpResponse::InternalServerError().json(e.to_string())
+        }
+    }
+}
+
+#[put("")]
+pub async fn update_document(
+    db: Data<DatabaseRepository>,
+    doc: Json<DocumentRequest>,
+    auth: AuthorizationService,
+) -> HttpResponse {
+    let id = auth.id;
+    if id.is_empty() {
+        return HttpResponse::BadRequest().body("Invalid id");
+    }
+
+    match db
+        .update_document(&id, &doc.title, &doc.content, None)
+        .await
+    {
+        Ok(result) => {
+            if result.matched_count == 1 {
+                match db.get_account(&id).await {
+                    Ok(user) => HttpResponse::Ok().json(user),
+                    Err(e) => {
+                        log::error!("Error: {:#?}", e);
+                        HttpResponse::InternalServerError().json(e.to_string())
+                    }
+                }
+            } else {
+                HttpResponse::InternalServerError().body("Error")
+            }
+        }
+        Err(e) => {
+            log::error!("Error: {:#?}", e);
+            HttpResponse::InternalServerError().json(e.to_string())
+        }
+    }
+}
+
+#[delete("")]
+pub async fn delete_document(
+    db: Data<DatabaseRepository>,
+    doc: Json<DocumentRequest>,
+    auth: AuthorizationService,
+) -> HttpResponse {
+    let id = auth.id;
+    if id.is_empty() {
+        return HttpResponse::BadRequest().body("Invalid id");
+    }
+
+    match db.delete_document(&id, &doc.title).await {
+        Ok(result) => {
+            if result.matched_count == 1 {
+                match db.get_account(&id).await {
+                    Ok(user) => HttpResponse::Ok().json(user),
+                    Err(e) => {
+                        log::error!("Error: {:#?}", e);
+                        HttpResponse::InternalServerError().json(e.to_string())
+                    }
+                }
+            } else {
+                HttpResponse::InternalServerError().body("Error")
+            }
+        }
+        Err(e) => {
+            log::error!("Error: {:#?}", e);
+            HttpResponse::InternalServerError().json(e.to_string())
+        }
     }
 }

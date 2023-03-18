@@ -3,8 +3,7 @@ use log;
 use mongodb::{
     bson::oid::ObjectId,
     bson::{doc, extjson::de::Error},
-    options::ClientOptions,
-    options::FindOneOptions,
+    options::{ClientOptions, UpdateOptions},
     results::{DeleteResult, InsertOneResult, UpdateResult},
     Client, Collection,
 };
@@ -13,7 +12,6 @@ use serde_json;
 use crate::handlers::types::AccountPatch;
 
 use crate::models::document::DocumentInfo;
-use crate::models::generate::GenerateData;
 use crate::models::profile::ProfileValue;
 use crate::models::traits::{GetFieldId, UpdateFieldId};
 use crate::models::user::{Account, User};
@@ -296,16 +294,35 @@ impl DatabaseRepository {
         }
     }
 
+    /// Check if a document exists in the database
+    pub async fn document_exists(&self, title: &str) -> Result<bool, Error> {
+        let filter = doc! {"documents.title": title};
+        let result = self.user_collection.find_one(filter, None).await;
+        match result {
+            Ok(result) => match result {
+                Some(_) => Ok(true),
+                None => Ok(false),
+            },
+            Err(e) => {
+                log::error!("Failed to find document {}", title);
+                Err(Error::DeserializationError {
+                    message: e.to_string(),
+                })
+            }
+        }
+    }
+
+    /// Add a document to the database
     pub async fn add_document(
         &self,
         id: &str,
         document: DocumentInfo,
-        date: i64,
     ) -> Result<UpdateResult, Error> {
         let obj_id = ObjectId::parse_str(id)
             .ok()
             .expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
+
         let update = doc! {
             "$push": {
                 "documents": {
@@ -313,11 +330,10 @@ impl DatabaseRepository {
                     "prompt": document.prompt.to_owned(),
                     "content": document.content.to_owned(),
                     "rating": Some(document.rating),
+                    "date_created": document.date_created,
+                    "date_updated": document.date_updated,
                 }
             },
-            "$set": {
-                "date_updated": date,
-            }
         };
         let result = self.user_collection.update_one(filter, update, None).await;
         match result {
@@ -336,57 +352,50 @@ impl DatabaseRepository {
         }
     }
 
-    pub async fn get_profile_data(
+    /// Update a document in the database
+    pub async fn update_document(
         &self,
         id: &str,
-        skills: &Vec<String>,
-        experience: &Vec<String>,
-    ) -> Result<GenerateData, Error> {
-        let filer = doc! {"_id": ObjectId::parse_str(id).unwrap()};
-        let find_options = FindOneOptions::builder()
-            .projection(doc! {
-                "profile": {
-                    "$filter": {
-                        "input": "$profile",
-                        "cond": {
-                            "$and": [
-                                {
-                                    "$or": [
-                                        { "skills.field_id": { "$in": skills } },
-                                        { "$eq": [ skills, [] ] }
-                                    ]
-                                },
-                                {
-                                    "$or": [
-                                        { "experience.field_id": { "$in": experience } },
-                                        { "$eq": [ experience, [] ] }
-                                    ]
-                                }
-                            ]
-                        }
-                    }
-                }
-            })
-            .build();
-        let result = self.user_collection.find_one(filer, find_options).await;
-        log::debug!("Result: {:?}", result);
-
+        title: &str,
+        content: &str,
+        rating: Option<i32>,
+    ) -> Result<UpdateResult, Error> {
+        let obj_id = ObjectId::parse_str(id)
+            .ok()
+            .expect("Failed to parse object id");
+        let filter = doc! {"_id": obj_id};
+        let update = doc! {
+            "$set": {
+                "documents.$[elem].title": title,
+                "documents.$[elem].content": content,
+                "documents.$[elem].rating": Some(rating),
+                "documents.$[elem].date_updated": chrono::Utc::now().timestamp(),
+            }
+        };
+        let array_filters = doc! {
+            "elem.title": title,
+        };
+        let result = self
+            .user_collection
+            .update_one(
+                filter,
+                update,
+                Some(
+                    UpdateOptions::builder()
+                        .array_filters(Some(vec![array_filters]))
+                        .build(),
+                ),
+            )
+            .await;
         match result {
-            Ok(result) => match result {
-                Some(document) => {
-                    let profile = document.profile.unwrap();
-                    Ok(GenerateData {
-                        skills: profile.skills,
-                        experience: profile.experience,
-                        education: profile.education,
-                    })
-                }
-                None => Err(Error::DeserializationError {
-                    message: "Failed to find document".to_string(),
+            Ok(result) => match result.modified_count {
+                1 => Ok(result),
+                _ => Err(Error::DeserializationError {
+                    message: "Failed to edit document".to_string(),
                 }),
             },
             Err(e) => {
-                log::error!("Failed to get profile data for account {}", id);
+                log::error!("Failed to edit document for account {}", id);
                 Err(Error::DeserializationError {
                     message: e.to_string(),
                 })
@@ -394,6 +403,39 @@ impl DatabaseRepository {
         }
     }
 
+    /// Delete a document from the database
+    pub async fn delete_document(&self, id: &str, title: &str) -> Result<UpdateResult, Error> {
+        let obj_id = ObjectId::parse_str(id)
+            .ok()
+            .expect("Failed to parse object id");
+        let filter = doc! {"_id": obj_id};
+        let update = doc! {
+            "$pull": {
+                "documents": {
+                    "title": title,
+                }
+            }
+        };
+        let result = self.user_collection.update_one(filter, update, None).await;
+        match result {
+            Ok(result) => match result.modified_count {
+                1 => Ok(result),
+                _ => Err(Error::DeserializationError {
+                    message: "Failed to delete document".to_string(),
+                }),
+            },
+            Err(e) => {
+                log::error!("Failed to delete document for account {}", id);
+                Err(Error::DeserializationError {
+                    message: e.to_string(),
+                })
+            }
+        }
+    }
+
+    /// Drop the database. WARNING: This is only for testing purposes
+    /// and should not be used in production
+    /// DO NOT CALL THIS FUNCTION IN PRODUCTION
     #[allow(dead_code)]
     pub async fn drop_database(&self) -> Result<(), Error> {
         if std::env::var("ENV").unwrap() != "test" {

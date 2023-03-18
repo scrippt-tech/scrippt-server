@@ -1,5 +1,11 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ErrorResponse {
+    /// The error message.
+    pub message: String,
+}
+
 // Start of account handler types
 
 #[derive(Debug, Serialize, Deserialize)]

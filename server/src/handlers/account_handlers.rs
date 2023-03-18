@@ -7,8 +7,8 @@ use std::env;
 
 use crate::auth::user_auth::AuthorizationService;
 use crate::handlers::types::{
-    AccountPatch, AuthResponse, Credentials, ExternalAccountQuery, VerificationCodeQuery,
-    VerificationQuery,
+    AccountPatch, AuthResponse, Credentials, ErrorResponse, ExternalAccountQuery,
+    VerificationCodeQuery, VerificationQuery,
 };
 use crate::utils;
 use crate::{
@@ -37,7 +37,9 @@ pub async fn get_account_by_id(
 ) -> HttpResponse {
     let id = auth.id;
     if id.is_empty() {
-        return HttpResponse::BadRequest().body("Invalid id");
+        return HttpResponse::BadRequest().json(ErrorResponse {
+            message: "Invalid id".to_string(),
+        });
     }
 
     match db.get_account(&id).await {
@@ -74,7 +76,9 @@ pub async fn update_account(
 ) -> HttpResponse {
     let id = auth.id;
     if id.is_empty() {
-        return HttpResponse::BadRequest().body("Invalid id");
+        return HttpResponse::BadRequest().json(ErrorResponse {
+            message: "Invalid id".to_string(),
+        });
     }
 
     if req.path != "name" && req.path != "email" && req.path != "password" {
@@ -99,7 +103,9 @@ pub async fn update_account(
             if acc.matched_count == 1 {
                 HttpResponse::Ok().json(res)
             } else {
-                HttpResponse::NotFound().body("Account not found")
+                HttpResponse::NotFound().json(ErrorResponse {
+                    message: "Account not found".to_string(),
+                })
             }
         }
         Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
@@ -113,7 +119,9 @@ pub async fn delete_account(
 ) -> HttpResponse {
     let id = auth.id;
     if id.is_empty() {
-        return HttpResponse::BadRequest().body("Invalid id");
+        return HttpResponse::BadRequest().json(ErrorResponse {
+            message: "Invalid id".to_string(),
+        });
     }
 
     let update_result = db.delete_account(&id).await;
@@ -123,7 +131,9 @@ pub async fn delete_account(
             if acc.deleted_count == 1 {
                 HttpResponse::NoContent().finish()
             } else {
-                HttpResponse::BadRequest().body("Account not found")
+                HttpResponse::NotFound().json(ErrorResponse {
+                    message: "Account not found".to_string(),
+                })
             }
         }
         Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
@@ -161,12 +171,16 @@ pub async fn create_account(
     match user {
         Ok(user) => {
             if user.is_some() {
-                return HttpResponse::Conflict().body("Account already exists");
+                return HttpResponse::Conflict().json(ErrorResponse {
+                    message: "Account already exists".to_string(),
+                });
             }
         }
-        Err(_) => {
-            return HttpResponse::InternalServerError()
-                .body("Internal server error: failed to get account")
+        Err(e) => {
+            log::error!("Error: {}", e);
+            return HttpResponse::InternalServerError().json(ErrorResponse {
+                message: "Internal Server Error".to_string(),
+            });
         }
     }
 
@@ -190,18 +204,22 @@ pub async fn create_account(
         Some(p) => p,
         None => {
             log::debug!("Password is required");
-            return HttpResponse::BadRequest().body("Password is required");
+            return HttpResponse::BadRequest().json(ErrorResponse {
+                message: "Password is required".to_string(),
+            });
         }
     };
     match utils::validation::validate_signup(&acc.email, &password) {
         Ok(_) => (),
         Err(e) => {
             log::debug!("Invalid signup: {}", e);
-            return HttpResponse::BadRequest().json(e.to_string());
+            return HttpResponse::BadRequest().json(ErrorResponse {
+                message: e.to_string(),
+            });
         }
     };
 
-    let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set"); // set this to global variable
+    let secret = env::var("JWT_SECRET").unwrap(); // set this to global variable
     let hash_password = utils::validation::generate_hash(&password);
 
     let empty_profile = Profile {
@@ -257,7 +275,9 @@ pub async fn create_account(
 
     match result {
         Ok(_result) => HttpResponse::Created().json(response),
-        Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
+        Err(e) => HttpResponse::InternalServerError().json(ErrorResponse {
+            message: e.to_string(),
+        }),
     }
 }
 
@@ -267,11 +287,17 @@ pub async fn login_account(db: Data<DatabaseRepository>, cred: Json<Credentials>
     let account = match user {
         Ok(user) => match user {
             Some(user) => user,
-            None => return HttpResponse::NotFound().body("Account not found"),
+            None => {
+                return HttpResponse::NotFound().json(ErrorResponse {
+                    message: "Account not found".to_string(),
+                })
+            }
         },
-        Err(_) => {
-            return HttpResponse::InternalServerError()
-                .body("Internal server error: failed to get account")
+        Err(e) => {
+            log::error!("Error: {}", e);
+            return HttpResponse::InternalServerError().json(ErrorResponse {
+                message: "Internal Server Error".to_string(),
+            });
         }
     };
 
@@ -286,9 +312,9 @@ pub async fn login_account(db: Data<DatabaseRepository>, cred: Json<Credentials>
     }
 
     let id = account.id.unwrap().to_hex();
-    let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
-    let domain = env::var("DOMAIN").expect("DOMAIN must be set");
-    let app_name = env::var("APP_NAME").expect("APP_NAME must be set");
+    let secret = env::var("JWT_SECRET").unwrap();
+    let domain = env::var("DOMAIN").unwrap();
+    let app_name = env::var("APP_NAME").unwrap();
     let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
 
     HttpResponse::Ok().json(AuthResponse { id, token })
@@ -299,9 +325,9 @@ pub async fn authenticate_external_account(
     db: Data<DatabaseRepository>,
     query: Query<ExternalAccountQuery>,
 ) -> HttpResponse {
-    let domain = env::var("DOMAIN").expect("DOMAIN must be set");
-    let app_name = env::var("APP_NAME").expect("APP_NAME must be set");
-    let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
+    let secret = env::var("JWT_SECRET").unwrap();
+    let domain = env::var("DOMAIN").unwrap();
+    let app_name = env::var("APP_NAME").unwrap();
 
     let token = query.token_id.to_owned();
     let google_claims: GoogleAuthClaims = match decode_google_token_id(&token).await {
@@ -357,14 +383,18 @@ pub async fn authenticate_external_account(
 
                     match result {
                         Ok(_result) => HttpResponse::Created().json(response),
-                        Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
+                        Err(e) => HttpResponse::InternalServerError().json(ErrorResponse {
+                            message: e.to_string(),
+                        }),
                     }
                 }
             }
         }
-        Err(_) => {
-            return HttpResponse::InternalServerError()
-                .body("Internal server error: failed to get account")
+        Err(e) => {
+            log::error!("Error: {}", e);
+            return HttpResponse::InternalServerError().json(ErrorResponse {
+                message: "Internal Server Error".to_string(),
+            });
         }
     }
 }
@@ -394,12 +424,15 @@ pub async fn get_verification_code(
     match user {
         Ok(user) => {
             if user.is_some() {
-                return HttpResponse::Conflict().body("Account already exists");
+                return HttpResponse::Conflict().json(ErrorResponse {
+                    message: "Email already exists".to_string(),
+                });
             }
         }
         Err(_) => {
-            return HttpResponse::InternalServerError()
-                .body("Internal server error: failed to get account")
+            return HttpResponse::InternalServerError().json(ErrorResponse {
+                message: "Internal Server Error".to_string(),
+            });
         }
     }
 
@@ -417,13 +450,19 @@ pub async fn get_verification_code(
 
     // Return early if in test environment
     if env::var("ENV").unwrap() == "test" {
-        return HttpResponse::Ok().json("Verification code sent");
+        return HttpResponse::Ok().json(ErrorResponse {
+            message: "Verification code sent".to_string(),
+        });
     }
 
     let result = utils::sendgrid::send_email_verification(&email, &name, &code).await;
     match result {
-        Ok(_) => HttpResponse::Ok().json("Verification code sent"),
-        Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
+        Ok(_) => HttpResponse::Ok().json(ErrorResponse {
+            message: "Verification code sent".to_string(),
+        }),
+        Err(e) => HttpResponse::InternalServerError().json(ErrorResponse {
+            message: e.to_string(),
+        }),
     }
 }
 
@@ -453,12 +492,17 @@ pub async fn verify_email(
                 redis.set(&email, &new_value).await.unwrap();
                 HttpResponse::Ok().json("Email verified")
             } else if status == "used" {
-                HttpResponse::BadRequest().body("This code has already been used.")
+                HttpResponse::BadRequest().json(ErrorResponse {
+                    message: "This code has already been used".to_string(),
+                })
             } else {
-                HttpResponse::Unauthorized()
-                    .body("Invalid code. Please try again with the correct code.")
+                HttpResponse::Unauthorized().json(ErrorResponse {
+                    message: "Invalid code. Please use a valid code.".to_string(),
+                })
             }
         }
-        Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
+        Err(e) => HttpResponse::InternalServerError().json(ErrorResponse {
+            message: e.to_string(),
+        }),
     }
 }
