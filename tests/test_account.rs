@@ -17,6 +17,7 @@ use server::repository::{database::DatabaseRepository, redis::RedisRepository};
 // use std::env;
 use chrono;
 use more_asserts::*;
+use serial_test::serial;
 use server::auth::jwt::{decode_google_token_id, decode_jwt};
 use std::sync::Once;
 
@@ -72,6 +73,7 @@ async fn create_some_account(name: &str, email: &str) -> actix_http::Request {
 ///
 /// It also asserts that the jwt contains the correct user id and email
 #[actix_rt::test]
+#[serial]
 async fn test_create_account() {
     let app = get_app().await;
     let app = test::init_service(app).await;
@@ -98,6 +100,7 @@ async fn test_create_account() {
 }
 
 #[actix_rt::test]
+#[serial]
 #[ignore = "This test requires a valid google token id"]
 async fn test_external_account() {
     let app = get_app().await;
@@ -178,6 +181,7 @@ async fn test_external_account() {
 ///
 /// It should fail with a 409 Conflict
 #[actix_rt::test]
+#[serial]
 async fn test_create_account_duplicate() {
     let app = get_app().await;
     let server = test::init_service(app).await;
@@ -197,6 +201,7 @@ async fn test_create_account_duplicate() {
 ///
 /// It should fail with a 409 Conflict
 #[actix_rt::test]
+#[serial]
 async fn test_create_account_duplicate_case_insensitive() {
     let app = get_app().await;
     let server = test::init_service(app).await;
@@ -215,6 +220,7 @@ async fn test_create_account_duplicate_case_insensitive() {
 ///
 /// It should fail with a 400 Bad Request
 #[actix_rt::test]
+#[serial]
 async fn test_create_account_bad_request() {
     let app = get_app().await;
     let server = test::init_service(app).await;
@@ -274,6 +280,7 @@ async fn test_create_account_bad_request() {
 /// It should succeed with a 200 \
 /// It verifies that the response body contains the correct user id and email
 #[actix_rt::test]
+#[serial]
 async fn test_get_account_by_id() {
     let app = get_app().await;
     let server = test::init_service(app).await;
@@ -306,6 +313,7 @@ async fn test_get_account_by_id() {
 ///
 /// It should return a 401 Unauthorized for each
 #[actix_rt::test]
+#[serial]
 async fn test_get_account_unauthorized() {
     let app = get_app().await;
     let server = test::init_service(app).await;
@@ -365,6 +373,7 @@ async fn test_get_account_unauthorized() {
 /// It tries to login with the old password, which should fail.
 /// It tries to login with the new password, which should succeed
 #[actix_rt::test]
+#[serial]
 async fn test_update_account() {
     let app = get_app().await;
     let server = test::init_service(app).await;
@@ -458,6 +467,7 @@ async fn test_update_account() {
 ///
 /// It verifies that the response is 204 No Content
 #[actix_rt::test]
+#[serial]
 async fn test_delete_account() {
     let app = get_app().await;
     let server = test::init_service(app).await;
@@ -484,6 +494,7 @@ async fn test_delete_account() {
 /// It verifies that the response body contains the account id and token
 /// It verifies that the token is valid
 #[actix_rt::test]
+#[serial]
 async fn test_account_login() {
     let app = get_app().await;
     let server = test::init_service(app).await;
@@ -524,6 +535,7 @@ async fn test_account_login() {
 ///
 /// It verifies that the response is 401 Unauthorized
 #[actix_rt::test]
+#[serial]
 async fn test_account_login_invalid_credentials() {
     let app = get_app().await;
     let server = test::init_service(app).await;
@@ -555,6 +567,7 @@ async fn test_account_login_invalid_credentials() {
 /// This tests the verification code endpoint
 /// It verifies that the code was added to the redis cache
 #[actix_rt::test]
+#[serial]
 async fn test_verification_code() {
     let app = get_app().await;
     let server = test::init_service(app).await;
@@ -578,6 +591,7 @@ async fn test_verification_code() {
 /// Sends a verification code to the email address
 /// Creates an account with the verification code
 #[actix_rt::test]
+#[serial]
 async fn test_create_account_verified() {
     let email = "johndoe@gmail.com";
     let name = "John";
@@ -647,6 +661,7 @@ async fn test_create_account_verified() {
 /// This test sends a verification code to an email address
 /// Then tries to verify the email address with an invalid code
 #[actix_rt::test]
+#[serial]
 async fn test_invalid_verification() {
     let email = "johndoe@gmail.com";
     let name = "John";
