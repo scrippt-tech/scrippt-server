@@ -24,44 +24,67 @@ $ cargo watch --version
 cargo-watch 8.4.0 # make sure this is the version you get
 ```
 
-To run the server in development mode, run:
+To run the server, tests, and other tasks, we use `cargo-make`. Install it with the following command.
 ```bash
-$ ./bin/server dev
+$ cargo install cargo-make
+...
+$ cargo make --version
+cargo-make 0.36.6 # your version may be different
 ```
 
-This will fail because you need to create a `.env` file in the root directory of the project. This file contains the environment variables that the server needs to run. Create a file called `.env` in the root directory of the project.
+Now you can run the server in watch (dev) mode with
+```bash
+$ cargo make -p dev watch
+```
+
+This will fail because you need to create a `secrets.env` file in the root directory of the project. This file contains the environment variables that the server needs to run. Create a file called `.env` in the root directory of the project.
 ```bash
 $ pwd
 /path/to/scrippt
-$ touch .env
+$ touch secrets.env
 ```
 
 Now add the following environment variables to the `.env` file:
 ```
-MONGO_URI=mongodb://localhost:27017
-REDIS_URI=redis://localhost:6379
-
-JWT_SECRET=secret
-
-GOOGLE_CLIENT_ID=<CLIENT_ID_HERE>
 SENDGRID_API_KEY=<API_KEY_HERE>
-
-APP_NAME=scrippt
-DOMAIN=localhost
+OPENAI_API_KEY=<API_KEY_HERE>
 ```
 
-Note: These values are for development purposes only. **DO NOT** use these values in production.
+To get the `OPENAI_API_KEY` and the `SENDGRID_API_KEY`, please ask another member of the Scrippt team for these values.
 
-To get the `GOOGLE_CLIENT_ID` and the `SENDGRID_API_KEY`, please ask another member of the Scrippt team for these values.
+Now running the server in dev mode as described above should work.
+```bash
+$ cargo make -p dev watch
+[cargo-make] INFO - cargo make 0.36.6
+[cargo-make] INFO - Calling cargo metadata to extract project info
+[cargo-make] INFO - Cargo metadata done
+[cargo-make] INFO - Project: server
+[cargo-make] INFO - Build File: Makefile.toml
+[cargo-make] INFO - Task: watch
+[cargo-make] INFO - Profile: dev
+[cargo-make] INFO - Running Task: legacy-migration
+[cargo-make] INFO - Execute Command: "cargo" "watch" "-x" "run"
+[Running 'cargo run']
+   Compiling server v0.1.0 (/home/santiagomed/scrippt/scrippt-server)
+    Finished dev [unoptimized + debuginfo] target(s) in 10.34s
+     Running `target/debug/server`
+main.rs:53 [INFO] - Starting server on port 8080...
+database.rs:32 [INFO] - Connected to MongoDB
+builder.rs:200 [INFO] - starting 8 workers
+server.rs:196 [INFO] - Actix runtime found; starting in Actix runtime
+```
+
+This will also run print the logs to the console. The default log level is `DEBUG`.
 
 ### MongoDB and Redis on Docker
 For ease of use, we will use Docker to run MongoDB and Redis. To install Docker, follow the instructions [here](https://docs.docker.com/get-docker/).
 
 To run MongoDB and Redis on Docker, run the following commands:
 ```bash
-$ docker run -d -p 27017:27017 --name scrippt-mongo mongo:latest
-$ docker run -d -p 6379:6379 --name scrippt-redis redis:latest
+$ docker compose -f docker-compose.dev.yml up -d
 ```
+
+This will run MongoDB and Redis in the background.
 
 Make sure that MongoDB and Redis are running by running the following commands:
 ```bash
