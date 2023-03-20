@@ -1,4 +1,7 @@
-env_files = ["./secrets.env"]
+env_files = [
+    { path = "secrets.env", profile = "dev" },
+    { path = "secrets.env", profile = "prod" }
+]
 
 [env]
 MONGO_URI="mongodb://localhost:27017"
