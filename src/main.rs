@@ -6,7 +6,6 @@ use actix_web::{
 };
 use dotenv::dotenv;
 use env_logger::fmt::Color;
-use log;
 use server::handlers::{account_handlers, document_handlers, generate_handlers, profile_handlers};
 use server::repository::{database::DatabaseRepository, redis::RedisRepository};
 use std::env;

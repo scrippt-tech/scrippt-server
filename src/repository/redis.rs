@@ -21,14 +21,14 @@ impl RedisRepository {
     /// Set a value in Redis
     pub async fn set(&self, key: &str, value: &str) -> Result<(), RedisError> {
         let mut con = self.client.get_async_connection().await.unwrap();
-        let _: () = con.set(key, value).await?;
+        con.set(key, value).await?;
         Ok(())
     }
 
     /// Delete a value from Redis
     pub async fn del(&self, key: &str) -> Result<(), RedisError> {
         let mut con = self.client.get_async_connection().await.unwrap();
-        let _: () = con.del(key).await?;
+        con.del(key).await?;
         Ok(())
     }
 
@@ -42,7 +42,7 @@ impl RedisRepository {
     /// Set a key to expire after a given number of seconds
     pub async fn expire(&self, key: &str, seconds: usize) -> Result<(), RedisError> {
         let mut con = self.client.get_async_connection().await.unwrap();
-        let _: () = con.expire(key, seconds).await?;
+        con.expire(key, seconds).await?;
         Ok(())
     }
 }

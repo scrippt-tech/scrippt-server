@@ -11,11 +11,9 @@ use actix_web::{
     web,
     App,
 };
-use env_logger;
 use server::handlers::account_handlers::*;
 use server::repository::{database::DatabaseRepository, redis::RedisRepository};
 // use std::env;
-use chrono;
 use more_asserts::*;
 use serial_test::serial;
 use server::auth::jwt::{decode_google_token_id, decode_jwt};
@@ -26,7 +24,7 @@ static INIT: Once = Once::new();
 async fn get_app(
 ) -> App<impl ServiceFactory<ServiceRequest, Response = ServiceResponse<impl MessageBody>, Config = (), InitError = (), Error = Error>> {
     // set up the logger to debug
-    INIT.call_once(|| env_logger::init());
+    INIT.call_once(env_logger::init);
     let db = DatabaseRepository::new("mongodb://localhost:27017").await;
     let redis = RedisRepository::new("redis://localhost:6379");
     let _ = db.drop_database().await;
@@ -337,7 +335,7 @@ async fn test_get_account_unauthorized() {
     assert_eq!(resp.status(), 401);
 
     // No token type
-    let req = test::TestRequest::get().uri("/account/").insert_header((header::AUTHORIZATION, format!("{}", token))).to_request();
+    let req = test::TestRequest::get().uri("/account/").insert_header((header::AUTHORIZATION, token.to_string())).to_request();
     let resp = test::call_service(&server, req).await;
 
     assert_eq!(resp.status(), 401);

@@ -65,5 +65,5 @@ pub async fn generate_request(prompt: String, profile: Profile, additional: Stri
         .build()?;
     log::debug!("Request: {:#?}", request);
 
-    Ok(client.chat().create(request).await?)
+    client.chat().create(request).await
 }

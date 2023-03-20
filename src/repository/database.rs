@@ -24,7 +24,7 @@ impl DatabaseRepository {
     /// Initialize the repository with a MongoDB connection
     pub async fn new(uri: &str) -> Self {
         let uri = uri.to_string();
-        let client_options = ClientOptions::parse(uri).await.ok().expect("Failed to parse client options");
+        let client_options = ClientOptions::parse(uri).await.expect("Failed to parse client options");
         let client = Client::with_options(client_options);
 
         match client {
@@ -43,7 +43,7 @@ impl DatabaseRepository {
 
     /// Get a user account by id
     pub async fn get_account(&self, id: &str) -> Result<Account, Error> {
-        let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
+        let obj_id = ObjectId::parse_str(id).expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
         let account_detail = self.user_collection.find_one(filter, None).await;
         match account_detail {
@@ -107,7 +107,7 @@ impl DatabaseRepository {
 
     /// Update an existing account's name and email
     pub async fn update_account(&self, id: &str, update: AccountPatch) -> Result<UpdateResult, Error> {
-        let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
+        let obj_id = ObjectId::parse_str(id).expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
         let new_doc = doc! {
             "$set": {
@@ -131,7 +131,7 @@ impl DatabaseRepository {
 
     /// Delete an existing account
     pub async fn delete_account(&self, id: &str) -> Result<DeleteResult, Error> {
-        let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
+        let obj_id = ObjectId::parse_str(id).expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
         let account_detail = self.user_collection.delete_one(filter, None).await;
         match account_detail {
@@ -150,7 +150,7 @@ impl DatabaseRepository {
 
     /// Add profile field to the database given an id, target, value and date
     pub async fn add_profile_field(&self, id: &String, target: String, mut value: ProfileValue, date: i64) -> Result<UpdateResult, Error> {
-        let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
+        let obj_id = ObjectId::parse_str(id).expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
         let target = format!("profile.{}", target);
         value.update_field_id(Some(ObjectId::new().to_hex()));
@@ -181,7 +181,7 @@ impl DatabaseRepository {
 
     /// Update profile field
     pub async fn update_profile_field(&self, id: &String, target: String, value: ProfileValue, date: i64) -> Result<UpdateResult, Error> {
-        let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
+        let obj_id = ObjectId::parse_str(id).expect("Failed to parse object id");
         let field_id = format!("profile.{}.field_id", target); // profile.target.field_id
         let field = format!("profile.{}.$", target); // profile.target.$
         let filter = doc! {
@@ -211,7 +211,7 @@ impl DatabaseRepository {
 
     /// Remove profile field
     pub async fn remove_profile_field(&self, id: &String, target: String, value: ProfileValue, date: i64) -> Result<UpdateResult, Error> {
-        let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
+        let obj_id = ObjectId::parse_str(id).expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
         let field_id = value.get_field_id().unwrap();
         let target = format!("profile.{}", target);
@@ -259,7 +259,7 @@ impl DatabaseRepository {
 
     /// Add a document to the database
     pub async fn add_document(&self, id: &str, document: DocumentInfo) -> Result<UpdateResult, Error> {
-        let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
+        let obj_id = ObjectId::parse_str(id).expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
 
         let update = doc! {
@@ -291,7 +291,7 @@ impl DatabaseRepository {
 
     /// Update a document in the database
     pub async fn update_document(&self, id: &str, title: &str, content: &str, rating: Option<i32>) -> Result<UpdateResult, Error> {
-        let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
+        let obj_id = ObjectId::parse_str(id).expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
         let update = doc! {
             "$set": {
@@ -328,7 +328,7 @@ impl DatabaseRepository {
 
     /// Delete a document from the database
     pub async fn delete_document(&self, id: &str, title: &str) -> Result<UpdateResult, Error> {
-        let obj_id = ObjectId::parse_str(id).ok().expect("Failed to parse object id");
+        let obj_id = ObjectId::parse_str(id).expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
         let update = doc! {
             "$pull": {

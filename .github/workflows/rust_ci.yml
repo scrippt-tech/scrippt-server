@@ -14,13 +14,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Install cargo-make
-        uses: actions-rs/cargo@v1
+      - uses: actions-rs/toolchain@v1
         with:
-          command: install
-          args: --debug cargo-make
-      - name: Run continuous integration
+          toolchain: stable
+          override: true
+      - uses: davidB/rust-cargo-make@v1
+      - name: Run linter
         uses: actions-rs/cargo@v1
         with:
           command: make
-          args: ci-flow
+          args: lint
+      - name: Run format
+        uses: actions-rs/cargo@v1
+        with:
+          command: make
+          args: format-check
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: make
+          args: -p ci test

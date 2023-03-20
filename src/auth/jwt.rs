@@ -118,12 +118,12 @@ pub async fn decode_google_token_id(token: &str) -> Result<GoogleAuthClaims, Err
     };
 
     // Find the key that corresponds to the `kid` in the token's header.
-    let header = decode_header(&token)?;
-    let kid = header.kid.ok_or_else(|| ErrorKind::InvalidKeyFormat)?;
+    let header = decode_header(token)?;
+    let kid = header.kid.ok_or(ErrorKind::InvalidKeyFormat)?;
 
     // Find the JWK key that corresponds to the `kid` in the token's header.
     let jwk_set = JwkSet { keys: jwk_set.keys };
-    let jwk = jwk_set.find(&kid).ok_or_else(|| ErrorKind::InvalidKeyFormat)?;
+    let jwk = jwk_set.find(&kid).ok_or(ErrorKind::InvalidKeyFormat)?;
 
     // Construct the decoding key from the JWK key.
     let decoding_key = DecodingKey::from_jwk(jwk)?;
@@ -133,13 +133,13 @@ pub async fn decode_google_token_id(token: &str) -> Result<GoogleAuthClaims, Err
     validation.set_issuer(&["accounts.google.com", "https://accounts.google.com"]);
 
     // Decode and verify the token.
-    let claims = decode::<GoogleAuthClaims>(&token, &decoding_key, &validation);
+    let claims = decode::<GoogleAuthClaims>(token, &decoding_key, &validation);
 
     match claims {
         Ok(claims) => Ok(claims.claims),
         Err(err) => {
             log::error!("Error decoding token: {:?}", err);
-            return Err(err);
+            Err(err)
         }
     }
 }
@@ -170,7 +170,7 @@ async fn get_latest_keys(file_path: &str) -> Result<GoogleJwkSet, Error> {
     let jwk = GoogleJwkSet { max_age, keys: jwk.keys };
 
     // Write JWKs to google_jwk.json
-    fs::write(&file_path, serde_json::to_string(&jwk).unwrap()).unwrap_or_else(|err| {
+    fs::write(file_path, serde_json::to_string(&jwk).unwrap()).unwrap_or_else(|err| {
         log::error!("Error writing JWKs to file {:?}: {:?}", file_path, err);
         panic!();
     });

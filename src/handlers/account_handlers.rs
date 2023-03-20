@@ -175,7 +175,7 @@ pub async fn create_account(db: Data<DatabaseRepository>, redis: Data<RedisRepos
         return HttpResponse::BadRequest()
             .body("Account has not been submitted for verification or verification window has expired. Please try to verify again.");
     }
-    if val.split(":").collect::<Vec<&str>>()[1] == "pending" {
+    if val.split(':').collect::<Vec<&str>>()[1] == "pending" {
         log::debug!("Account has not been verified yet");
         return HttpResponse::BadRequest().body("Account has not been verified yet");
     }
@@ -197,7 +197,7 @@ pub async fn create_account(db: Data<DatabaseRepository>, redis: Data<RedisRepos
         Ok(_) => (),
         Err(e) => {
             log::debug!("Invalid signup: {}", e);
-            return HttpResponse::BadRequest().json(ErrorResponse { message: e.to_string() });
+            return HttpResponse::BadRequest().json(ErrorResponse { message: e });
         }
     };
 
@@ -281,7 +281,7 @@ pub async fn login_account(db: Data<DatabaseRepository>, cred: Json<Credentials>
         return HttpResponse::Unauthorized().body("Invalid password");
     }
 
-    if utils::validation::verify_hash(&cred.password, account.password.as_ref().unwrap()) == false {
+    if !utils::validation::verify_hash(&cred.password, account.password.as_ref().unwrap()) {
         return HttpResponse::Unauthorized().body("Invalid password");
     }
 
@@ -355,9 +355,9 @@ pub async fn authenticate_external_account(db: Data<DatabaseRepository>, query: 
         }
         Err(e) => {
             log::error!("Error: {}", e);
-            return HttpResponse::InternalServerError().json(ErrorResponse {
+            HttpResponse::InternalServerError().json(ErrorResponse {
                 message: "Internal Server Error".to_string(),
-            });
+            })
         }
     }
 }
