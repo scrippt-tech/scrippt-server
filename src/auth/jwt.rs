@@ -33,23 +33,14 @@ pub fn encode_jwt(iss: String, sub: String, aud: String, secret: &str) -> String
         exp: (chrono::Utc::now() + chrono::Duration::hours(24)).timestamp() as usize,
     };
 
-    let token = encode(
-        &Header::default(),
-        &my_claims,
-        &EncodingKey::from_secret(secret.as_ref()),
-    )
-    .unwrap();
+    let token = encode(&Header::default(), &my_claims, &EncodingKey::from_secret(secret.as_ref())).unwrap();
 
     token
 }
 
 /// Decode a JWT with the given claims.
 pub fn decode_jwt(token: String, secret: &str) -> Result<Claims, Error> {
-    let decoded = decode::<Claims>(
-        &token,
-        &DecodingKey::from_secret(secret.as_ref()),
-        &Validation::new(Algorithm::HS256),
-    )?;
+    let decoded = decode::<Claims>(&token, &DecodingKey::from_secret(secret.as_ref()), &Validation::new(Algorithm::HS256))?;
 
     Ok(decoded.claims)
 }
@@ -110,10 +101,7 @@ pub async fn decode_google_token_id(token: &str) -> Result<GoogleAuthClaims, Err
         log::debug!(".jwk file found; retrieving JWKs from .jwk file.");
         let metadata = fs::metadata(key_path).unwrap();
         let modified = metadata.modified().unwrap();
-        let jwk_set = fs::read_to_string(key_path)
-            .unwrap()
-            .parse::<GoogleJwkSet>()
-            .unwrap();
+        let jwk_set = fs::read_to_string(key_path).unwrap().parse::<GoogleJwkSet>().unwrap();
         let max_age = jwk_set.max_age;
 
         // If the max-age JSON field is not greater than last modified, use the cached JWKs.
@@ -130,14 +118,12 @@ pub async fn decode_google_token_id(token: &str) -> Result<GoogleAuthClaims, Err
     };
 
     // Find the key that corresponds to the `kid` in the token's header.
-    let header = decode_header(&token)?;
-    let kid = header.kid.ok_or_else(|| ErrorKind::InvalidKeyFormat)?;
+    let header = decode_header(token)?;
+    let kid = header.kid.ok_or(ErrorKind::InvalidKeyFormat)?;
 
     // Find the JWK key that corresponds to the `kid` in the token's header.
     let jwk_set = JwkSet { keys: jwk_set.keys };
-    let jwk = jwk_set
-        .find(&kid)
-        .ok_or_else(|| ErrorKind::InvalidKeyFormat)?;
+    let jwk = jwk_set.find(&kid).ok_or(ErrorKind::InvalidKeyFormat)?;
 
     // Construct the decoding key from the JWK key.
     let decoding_key = DecodingKey::from_jwk(jwk)?;
@@ -147,13 +133,13 @@ pub async fn decode_google_token_id(token: &str) -> Result<GoogleAuthClaims, Err
     validation.set_issuer(&["accounts.google.com", "https://accounts.google.com"]);
 
     // Decode and verify the token.
-    let claims = decode::<GoogleAuthClaims>(&token, &decoding_key, &validation);
+    let claims = decode::<GoogleAuthClaims>(token, &decoding_key, &validation);
 
     match claims {
         Ok(claims) => Ok(claims.claims),
         Err(err) => {
             log::error!("Error decoding token: {:?}", err);
-            return Err(err);
+            Err(err)
         }
     }
 }
@@ -163,9 +149,7 @@ pub async fn decode_google_token_id(token: &str) -> Result<GoogleAuthClaims, Err
 /// Return the JWKs.
 async fn get_latest_keys(file_path: &str) -> Result<GoogleJwkSet, Error> {
     log::debug!("Retrieving latest JWKs from Google's JWK endpoint.");
-    let res = reqwest::get("https://www.googleapis.com/oauth2/v3/certs")
-        .await
-        .unwrap();
+    let res = reqwest::get("https://www.googleapis.com/oauth2/v3/certs").await.unwrap();
     // Get Cache-Control header
     let cache_control = res.headers().get("cache-control").unwrap();
     // Get max-age value from Cache-Control header
@@ -183,13 +167,10 @@ async fn get_latest_keys(file_path: &str) -> Result<GoogleJwkSet, Error> {
         .unwrap();
 
     let jwk = res.json::<JwkSet>().await.unwrap();
-    let jwk = GoogleJwkSet {
-        max_age,
-        keys: jwk.keys,
-    };
+    let jwk = GoogleJwkSet { max_age, keys: jwk.keys };
 
     // Write JWKs to google_jwk.json
-    fs::write(&file_path, serde_json::to_string(&jwk).unwrap()).unwrap_or_else(|err| {
+    fs::write(file_path, serde_json::to_string(&jwk).unwrap()).unwrap_or_else(|err| {
         log::error!("Error writing JWKs to file {:?}: {:?}", file_path, err);
         panic!();
     });

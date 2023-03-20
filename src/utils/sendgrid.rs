@@ -3,11 +3,7 @@ use sendgrid::v3::*;
 use std::collections::HashMap;
 
 /// Send an email verification email to the user.
-pub async fn send_email_verification(
-    email: &str,
-    name: &str,
-    code: &str,
-) -> Result<(), SendgridError> {
+pub async fn send_email_verification(email: &str, name: &str, code: &str) -> Result<(), SendgridError> {
     let api_key = std::env::var("SENDGRID_API_KEY").unwrap();
     let client = Sender::new(api_key);
 
@@ -15,8 +11,7 @@ pub async fn send_email_verification(
     template_data.insert("name".to_string(), name.to_string());
     template_data.insert("code".to_string(), code.to_string());
 
-    let personalization = Personalization::new(Email::new(email.to_string()))
-        .add_dynamic_template_data(template_data);
+    let personalization = Personalization::new(Email::new(email.to_string())).add_dynamic_template_data(template_data);
 
     let sender = Email::new("noreply@scrippt.tech".to_string()).set_name("Scrippt".to_string());
     let message = Message::new(sender)
@@ -40,8 +35,7 @@ pub async fn send_account_created(email: &str, name: &str) -> Result<(), Sendgri
     let mut template_data = HashMap::with_capacity(1);
     template_data.insert("name".to_string(), name.to_string());
 
-    let personalization = Personalization::new(Email::new(email.to_string()))
-        .add_dynamic_template_data(template_data);
+    let personalization = Personalization::new(Email::new(email.to_string())).add_dynamic_template_data(template_data);
 
     let sender = Email::new("noreply@scrippt.tech".to_string()).set_name("Scrippt".to_string());
     let message = Message::new(sender)

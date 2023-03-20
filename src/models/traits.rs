@@ -55,28 +55,6 @@ impl Default for Experience {
     }
 }
 
-impl Default for Education {
-    fn default() -> Self {
-        Self {
-            field_id: None,
-            school: String::new(),
-            degree: String::new(),
-            field_of_study: String::new(),
-            current: false,
-            description: String::new(),
-        }
-    }
-}
-
-impl Default for Skills {
-    fn default() -> Self {
-        Self {
-            field_id: None,
-            skill: String::new(),
-        }
-    }
-}
-
 impl Default for ExperienceType {
     fn default() -> Self {
         Self::Work

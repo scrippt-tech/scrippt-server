@@ -8,7 +8,6 @@ use actix_web::{
     middleware, test, web, App,
 };
 use assert_json_diff::assert_json_include;
-use env_logger;
 use server::handlers::account_handlers::create_account;
 use server::handlers::profile_handlers::change_profile;
 use server::repository::{database::DatabaseRepository, redis::RedisRepository};
@@ -16,17 +15,10 @@ use std::sync::Once;
 
 static INIT: Once = Once::new();
 
-async fn get_app() -> App<
-    impl ServiceFactory<
-        ServiceRequest,
-        Response = ServiceResponse<impl MessageBody>,
-        Config = (),
-        InitError = (),
-        Error = Error,
-    >,
-> {
+async fn get_app(
+) -> App<impl ServiceFactory<ServiceRequest, Response = ServiceResponse<impl MessageBody>, Config = (), InitError = (), Error = Error>> {
     // set up the logger to debug
-    INIT.call_once(|| env_logger::init());
+    INIT.call_once(env_logger::init);
     let db = DatabaseRepository::new("mongodb://localhost:27017").await;
     let redis = RedisRepository::new("redis://localhost:6379");
     let _ = db.drop_database().await;

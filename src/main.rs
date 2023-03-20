@@ -6,7 +6,6 @@ use actix_web::{
 };
 use dotenv::dotenv;
 use env_logger::fmt::Color;
-use log;
 use server::handlers::{account_handlers, document_handlers, generate_handlers, profile_handlers};
 use server::repository::{database::DatabaseRepository, redis::RedisRepository};
 use std::env;
@@ -43,12 +42,7 @@ async fn main() -> std::io::Result<()> {
             writeln!(
                 buf,
                 "{}:{} [{}] - {}",
-                record
-                    .file()
-                    .unwrap_or_default()
-                    .split('/')
-                    .last()
-                    .unwrap_or_default(),
+                record.file().unwrap_or_default().split('/').last().unwrap_or_default(),
                 record.line().unwrap_or(0),
                 style.value(level),
                 record.args()
@@ -70,11 +64,7 @@ async fn main() -> std::io::Result<()> {
         let cors = Cors::default()
             .allowed_origin("http://localhost:8000")
             .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
-            .allowed_headers(vec![
-                http::header::AUTHORIZATION,
-                http::header::ACCEPT,
-                http::header::CONTENT_TYPE,
-            ])
+            .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT, http::header::CONTENT_TYPE])
             .max_age(3600);
         App::new()
             .wrap(cors)

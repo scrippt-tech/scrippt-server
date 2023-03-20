@@ -20,12 +20,7 @@ pub struct GenerateResponse {
 
 #[post("")]
 pub async fn generate_openai(data: Json<Highlights>, _auth: AuthorizationService) -> HttpResponse {
-    let response = generate_request(
-        data.prompt.clone(),
-        data.profile.clone(),
-        data.additional.clone(),
-    )
-    .await;
+    let response = generate_request(data.prompt.clone(), data.profile.clone(), data.additional.clone()).await;
 
     let mut res: Vec<GenerateResponse> = Vec::new();
 

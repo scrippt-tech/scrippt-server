@@ -38,7 +38,7 @@ pub struct Experience {
     pub description: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Education {
     /// Field ID of the education object
     pub field_id: Option<String>,
@@ -59,7 +59,7 @@ pub struct Education {
     pub description: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Skills {
     /// Field ID of the skills object
     pub field_id: Option<String>,

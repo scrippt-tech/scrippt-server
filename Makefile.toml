@@ -1,0 +1,68 @@
+env_files = ["./secrets.env"]
+
+[env]
+MONGO_URI="mongodb://localhost:27017"
+REDIS_URI="redis://localhost:6379"
+JWT_SECRET="secret"
+APP_NAME="scrippt"
+DOMAIN="localhost"
+GOOGLE_CLIENT_ID="82324295624-32uqo7r4j24etafpr2t0ddqt5b0etmj8.apps.googleusercontent.com"
+GOOGLE_JWK_PATH="./.jwk"
+
+[env.test]
+ENV="test"
+
+[env.ci]
+ENV="test"
+
+[env.dev]
+ENV="dev"
+RUST_LOG="debug"
+
+[env.prod]
+ENV="prod"
+RUST_LOG="info"
+
+[tasks.format-check]
+description = "Format code using rustfmt"
+command = "cargo"
+args = ["fmt", "--all", "--", "--check"]
+
+[tasks.lint]
+description = "Lint code using clippy"
+command = "cargo"
+args = ["clippy"]
+
+[tasks.docker]
+description = "Run MongoDB and Redis for tests"
+command = "docker"
+args = ["compose", "-f", "docker-compose.test.yml", "up", "-d"]
+
+[tasks.docker-down]
+description = "Stop MongoDB and Redis for tests"
+command = "docker-compose"
+args = ["-f", "docker-compose.test.yml", "down"]
+dependencies = ["docker"]
+
+[tasks.test]
+condition = { profiles = ["test", "ci"] }
+description = "Run tests"
+command = "cargo"
+args = ["test", "--test", "test_*"]
+dependencies = ["docker"]
+
+[tasks.watch]
+condition = { profiles = ["dev"] }
+description = "Run the server in watch mode"
+command = "cargo"
+args = ["watch", "-x", "run"]
+
+[tasks.build]
+condition = { profiles = ["prod"] }
+description = "Build the server"
+command = "cargo"
+args = ["build", "--release"]
+
+[tasks.ci-flow]
+description = "Run all CI tasks"
+dependencies = ["format-check", "lint", "test"]
