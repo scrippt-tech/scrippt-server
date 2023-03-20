@@ -19,6 +19,6 @@ jobs:
           toolchain: stable
           override: true
       - uses: davidB/rust-cargo-make@v1
+      - uses: actions/checkout@v3
       - name: Run CI tasks
-        uses: actions/checkout@v3
         run: cargo make -p ci ci-flow
