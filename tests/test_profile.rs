@@ -16,15 +16,8 @@ use std::sync::Once;
 
 static INIT: Once = Once::new();
 
-async fn get_app() -> App<
-    impl ServiceFactory<
-        ServiceRequest,
-        Response = ServiceResponse<impl MessageBody>,
-        Config = (),
-        InitError = (),
-        Error = Error,
-    >,
-> {
+async fn get_app(
+) -> App<impl ServiceFactory<ServiceRequest, Response = ServiceResponse<impl MessageBody>, Config = (), InitError = (), Error = Error>> {
     // set up the logger to debug
     INIT.call_once(|| env_logger::init());
     let db = DatabaseRepository::new("mongodb://localhost:27017").await;

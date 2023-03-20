@@ -23,15 +23,8 @@ use std::sync::Once;
 
 static INIT: Once = Once::new();
 
-async fn get_app() -> App<
-    impl ServiceFactory<
-        ServiceRequest,
-        Response = ServiceResponse<impl MessageBody>,
-        Config = (),
-        InitError = (),
-        Error = Error,
-    >,
-> {
+async fn get_app(
+) -> App<impl ServiceFactory<ServiceRequest, Response = ServiceResponse<impl MessageBody>, Config = (), InitError = (), Error = Error>> {
     // set up the logger to debug
     INIT.call_once(|| env_logger::init());
     let db = DatabaseRepository::new("mongodb://localhost:27017").await;
@@ -108,9 +101,7 @@ async fn test_external_account() {
     std::env::set_var("GOOGLE_JWK_PATH", ".jwk");
 
     let google_token_id = "<token_goes_here>";
-    let req = test::TestRequest::post()
-        .uri(format!("/account/auth/google?token_id={}", google_token_id).as_str())
-        .to_request();
+    let req = test::TestRequest::post().uri(format!("/account/auth/google?token_id={}", google_token_id).as_str()).to_request();
     let resp = test::call_service(&app, req).await;
 
     assert_eq!(resp.status(), 201);
@@ -121,9 +112,7 @@ async fn test_external_account() {
     let id = json["id"].as_str().unwrap();
     let token = json["token"].as_str().unwrap();
 
-    let google_jwt_claims = decode_google_token_id(google_token_id)
-        .await
-        .expect("failed to decode google token id");
+    let google_jwt_claims = decode_google_token_id(google_token_id).await.expect("failed to decode google token id");
 
     // get account and compare
     let req = test::TestRequest::get()
@@ -144,9 +133,7 @@ async fn test_external_account() {
     assert_eq!(json["name"].as_str().unwrap(), google_jwt_claims.name);
 
     // test login
-    let req = test::TestRequest::post()
-        .uri(format!("/account/auth/google?token_id={}", google_token_id).as_str())
-        .to_request();
+    let req = test::TestRequest::post().uri(format!("/account/auth/google?token_id={}", google_token_id).as_str()).to_request();
     let resp = test::call_service(&app, req).await;
 
     assert_eq!(resp.status(), 200);
@@ -350,10 +337,7 @@ async fn test_get_account_unauthorized() {
     assert_eq!(resp.status(), 401);
 
     // No token type
-    let req = test::TestRequest::get()
-        .uri("/account/")
-        .insert_header((header::AUTHORIZATION, format!("{}", token)))
-        .to_request();
+    let req = test::TestRequest::get().uri("/account/").insert_header((header::AUTHORIZATION, format!("{}", token))).to_request();
     let resp = test::call_service(&server, req).await;
 
     assert_eq!(resp.status(), 401);
@@ -516,11 +500,7 @@ async fn test_account_login() {
     let json = serde_json::from_slice::<serde_json::Value>(&body).unwrap();
     let id = json["id"].as_str().unwrap();
     let token = json["token"].as_str().unwrap();
-    let jwt = decode_jwt(
-        token.to_string(),
-        &std::env::var("JWT_SECRET").expect("JWT secret must be set"),
-    )
-    .unwrap();
+    let jwt = decode_jwt(token.to_string(), &std::env::var("JWT_SECRET").expect("JWT secret must be set")).unwrap();
     assert_eq!(jwt.iss, std::env::var("APP_NAME").unwrap());
     assert_eq!(jwt.sub, id);
     assert_eq!(jwt.aud, std::env::var("DOMAIN").unwrap());
@@ -571,9 +551,7 @@ async fn test_account_login_invalid_credentials() {
 async fn test_verification_code() {
     let app = get_app().await;
     let server = test::init_service(app).await;
-    let req = test::TestRequest::post()
-        .uri("/account/auth/verification-code?name=test&email=some@email.com")
-        .to_request();
+    let req = test::TestRequest::post().uri("/account/auth/verification-code?name=test&email=some@email.com").to_request();
     let res = test::call_service(&server, req).await;
     assert_eq!(res.status(), 200);
 
@@ -597,12 +575,7 @@ async fn test_create_account_verified() {
     let name = "John";
     let app = get_app().await;
     let server = test::init_service(app).await;
-    let req = test::TestRequest::post()
-        .uri(&format!(
-            "/account/auth/verification-code?name={}&email={}",
-            name, email
-        ))
-        .to_request();
+    let req = test::TestRequest::post().uri(&format!("/account/auth/verification-code?name={}&email={}", name, email)).to_request();
     let res = test::call_service(&server, req).await;
     assert_eq!(res.status(), 200);
 
@@ -631,12 +604,7 @@ async fn test_create_account_verified() {
     log::debug!("body: {}", std::str::from_utf8(&body).unwrap());
 
     // submit code for verification
-    let req = test::TestRequest::post()
-        .uri(&format!(
-            "/account/auth/verify-email?email={}&code={}",
-            email, val[0]
-        ))
-        .to_request();
+    let req = test::TestRequest::post().uri(&format!("/account/auth/verify-email?email={}&code={}", email, val[0])).to_request();
     let res = test::call_service(&server, req).await;
     assert_eq!(res.status(), 200);
 
@@ -680,32 +648,16 @@ async fn test_invalid_verification() {
     let res = test::call_service(&server, req).await;
     assert_eq!(res.status(), 400);
     let body = test::read_body(res).await;
-    log::debug!(
-        "Unverified account body: {}",
-        std::str::from_utf8(&body).unwrap()
-    );
+    log::debug!("Unverified account body: {}", std::str::from_utf8(&body).unwrap());
 
-    let req = test::TestRequest::post()
-        .uri(&format!(
-            "/account/auth/verify-email?email={}&name={}",
-            email, "123456"
-        ))
-        .to_request();
+    let req = test::TestRequest::post().uri(&format!("/account/auth/verify-email?email={}&name={}", email, "123456")).to_request();
     let res = test::call_service(&server, req).await;
     assert_eq!(res.status(), 400);
 
     let body = test::read_body(res).await;
-    log::debug!(
-        "Invalid verification code body: {}",
-        std::str::from_utf8(&body).unwrap()
-    );
+    log::debug!("Invalid verification code body: {}", std::str::from_utf8(&body).unwrap());
 
-    let req = test::TestRequest::post()
-        .uri(&format!(
-            "/account/auth/verification-code?email={}&name={}",
-            email, name
-        ))
-        .to_request();
+    let req = test::TestRequest::post().uri(&format!("/account/auth/verification-code?email={}&name={}", email, name)).to_request();
     let res = test::call_service(&server, req).await;
     assert_eq!(res.status(), 200);
 
@@ -719,18 +671,10 @@ async fn test_invalid_verification() {
     assert!(exists);
 
     // submit code for verification
-    let req = test::TestRequest::post()
-        .uri(&format!(
-            "/account/auth/verify-email?email={}&code={}",
-            email, "123456"
-        ))
-        .to_request();
+    let req = test::TestRequest::post().uri(&format!("/account/auth/verify-email?email={}&code={}", email, "123456")).to_request();
     let res = test::call_service(&server, req).await;
     assert_eq!(res.status(), 401);
 
     let body = test::read_body(res).await;
-    log::debug!(
-        "Invalid verification code body: {}",
-        std::str::from_utf8(&body).unwrap()
-    );
+    log::debug!("Invalid verification code body: {}", std::str::from_utf8(&body).unwrap());
 }

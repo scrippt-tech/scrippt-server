@@ -1,10 +1,7 @@
 use crate::models::profile::Profile;
 use async_openai::{
     error::OpenAIError,
-    types::{
-        ChatCompletionRequestMessageArgs, CreateChatCompletionRequestArgs,
-        CreateChatCompletionResponse, Role,
-    },
+    types::{ChatCompletionRequestMessageArgs, CreateChatCompletionRequestArgs, CreateChatCompletionResponse, Role},
     Client,
 };
 
@@ -32,11 +29,7 @@ use async_openai::{
 ///    println!("Response: {:#?}", choice.message.content);
 /// }
 /// ```
-pub async fn generate_request(
-    prompt: String,
-    profile: Profile,
-    additional: String,
-) -> Result<CreateChatCompletionResponse, OpenAIError> {
+pub async fn generate_request(prompt: String, profile: Profile, additional: String) -> Result<CreateChatCompletionResponse, OpenAIError> {
     let client = Client::new();
     let request = CreateChatCompletionRequestArgs::default()
         .max_tokens(1024u16)
@@ -65,15 +58,9 @@ pub async fn generate_request(
                 .build()?,
             ChatCompletionRequestMessageArgs::default()
                 .role(Role::System)
-                .content(format!(
-                    "This is additional information about yourself: {}",
-                    additional
-                ))
+                .content(format!("This is additional information about yourself: {}", additional))
                 .build()?,
-            ChatCompletionRequestMessageArgs::default()
-                .role(Role::System)
-                .content(prompt)
-                .build()?,
+            ChatCompletionRequestMessageArgs::default().role(Role::System).content(prompt).build()?,
         ])
         .build()?;
     log::debug!("Request: {:#?}", request);

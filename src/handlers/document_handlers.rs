@@ -6,10 +6,7 @@ use actix_web::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    auth::user_auth::AuthorizationService, models::document::DocumentInfo,
-    repository::database::DatabaseRepository,
-};
+use crate::{auth::user_auth::AuthorizationService, models::document::DocumentInfo, repository::database::DatabaseRepository};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DocumentRequest {
@@ -19,11 +16,7 @@ pub struct DocumentRequest {
 }
 
 #[post("")]
-pub async fn create_document(
-    db: Data<DatabaseRepository>,
-    doc: Json<DocumentRequest>,
-    auth: AuthorizationService,
-) -> HttpResponse {
+pub async fn create_document(db: Data<DatabaseRepository>, doc: Json<DocumentRequest>, auth: AuthorizationService) -> HttpResponse {
     let id = auth.id;
     if id.is_empty() {
         return HttpResponse::BadRequest().body("Invalid id");
@@ -64,20 +57,13 @@ pub async fn create_document(
 }
 
 #[put("")]
-pub async fn update_document(
-    db: Data<DatabaseRepository>,
-    doc: Json<DocumentRequest>,
-    auth: AuthorizationService,
-) -> HttpResponse {
+pub async fn update_document(db: Data<DatabaseRepository>, doc: Json<DocumentRequest>, auth: AuthorizationService) -> HttpResponse {
     let id = auth.id;
     if id.is_empty() {
         return HttpResponse::BadRequest().body("Invalid id");
     }
 
-    match db
-        .update_document(&id, &doc.title, &doc.content, None)
-        .await
-    {
+    match db.update_document(&id, &doc.title, &doc.content, None).await {
         Ok(result) => {
             if result.matched_count == 1 {
                 match db.get_account(&id).await {
@@ -99,11 +85,7 @@ pub async fn update_document(
 }
 
 #[delete("")]
-pub async fn delete_document(
-    db: Data<DatabaseRepository>,
-    doc: Json<DocumentRequest>,
-    auth: AuthorizationService,
-) -> HttpResponse {
+pub async fn delete_document(db: Data<DatabaseRepository>, doc: Json<DocumentRequest>, auth: AuthorizationService) -> HttpResponse {
     let id = auth.id;
     if id.is_empty() {
         return HttpResponse::BadRequest().body("Invalid id");

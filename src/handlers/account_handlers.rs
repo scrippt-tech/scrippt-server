@@ -7,17 +7,14 @@ use std::env;
 
 use crate::auth::user_auth::AuthorizationService;
 use crate::handlers::types::{
-    AccountPatch, AuthResponse, Credentials, ErrorResponse, ExternalAccountQuery,
-    VerificationCodeQuery, VerificationQuery,
+    AccountPatch, AuthResponse, Credentials, ErrorResponse, ExternalAccountQuery, VerificationCodeQuery, VerificationQuery,
 };
 use crate::utils;
 use crate::{
     auth::jwt::{decode_google_token_id, encode_jwt, GoogleAuthClaims},
     repository::redis::RedisRepository,
 };
-use crate::{
-    models::profile::Profile, models::user::User, repository::database::DatabaseRepository,
-};
+use crate::{models::profile::Profile, models::user::User, repository::database::DatabaseRepository};
 
 /// API route to get a user's account by id. Returns a user's account information.
 /// ### Response body (if successful):
@@ -31,10 +28,7 @@ use crate::{
 /// }
 /// ```
 #[get("")]
-pub async fn get_account_by_id(
-    db: Data<DatabaseRepository>,
-    auth: AuthorizationService,
-) -> HttpResponse {
+pub async fn get_account_by_id(db: Data<DatabaseRepository>, auth: AuthorizationService) -> HttpResponse {
     let id = auth.id;
     if id.is_empty() {
         return HttpResponse::BadRequest().json(ErrorResponse {
@@ -69,11 +63,7 @@ pub async fn get_account_by_id(
 /// }
 /// ```
 #[patch("")]
-pub async fn update_account(
-    db: Data<DatabaseRepository>,
-    mut req: Json<AccountPatch>,
-    auth: AuthorizationService,
-) -> HttpResponse {
+pub async fn update_account(db: Data<DatabaseRepository>, mut req: Json<AccountPatch>, auth: AuthorizationService) -> HttpResponse {
     let id = auth.id;
     if id.is_empty() {
         return HttpResponse::BadRequest().json(ErrorResponse {
@@ -113,10 +103,7 @@ pub async fn update_account(
 }
 
 #[delete("")]
-pub async fn delete_account(
-    db: Data<DatabaseRepository>,
-    auth: AuthorizationService,
-) -> HttpResponse {
+pub async fn delete_account(db: Data<DatabaseRepository>, auth: AuthorizationService) -> HttpResponse {
     let id = auth.id;
     if id.is_empty() {
         return HttpResponse::BadRequest().json(ErrorResponse {
@@ -162,11 +149,7 @@ pub async fn delete_account(
 /// }
 /// ```
 #[post("/create")]
-pub async fn create_account(
-    db: Data<DatabaseRepository>,
-    redis: Data<RedisRepository>,
-    acc: Json<User>,
-) -> HttpResponse {
+pub async fn create_account(db: Data<DatabaseRepository>, redis: Data<RedisRepository>, acc: Json<User>) -> HttpResponse {
     let user = db.get_account_by_email(&acc.email).await;
     match user {
         Ok(user) => {
@@ -189,7 +172,8 @@ pub async fn create_account(
     let val = redis.get(&acc.email).await.unwrap();
     if val.is_empty() {
         log::debug!("Account has not been submitted for verification or verification window has expired. Please try to verify again.");
-        return HttpResponse::BadRequest().body("Account has not been submitted for verification or verification window has expired. Please try to verify again.");
+        return HttpResponse::BadRequest()
+            .body("Account has not been submitted for verification or verification window has expired. Please try to verify again.");
     }
     if val.split(":").collect::<Vec<&str>>()[1] == "pending" {
         log::debug!("Account has not been verified yet");
@@ -213,9 +197,7 @@ pub async fn create_account(
         Ok(_) => (),
         Err(e) => {
             log::debug!("Invalid signup: {}", e);
-            return HttpResponse::BadRequest().json(ErrorResponse {
-                message: e.to_string(),
-            });
+            return HttpResponse::BadRequest().json(ErrorResponse { message: e.to_string() });
         }
     };
 
@@ -244,13 +226,7 @@ pub async fn create_account(
 
     let result = db.create_account(data).await;
 
-    let id = result
-        .as_ref()
-        .unwrap()
-        .inserted_id
-        .as_object_id()
-        .unwrap()
-        .to_hex();
+    let id = result.as_ref().unwrap().inserted_id.as_object_id().unwrap().to_hex();
     let domain = env::var("DOMAIN").unwrap();
     let app_name = env::var("APP_NAME").unwrap();
     let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
@@ -275,9 +251,7 @@ pub async fn create_account(
 
     match result {
         Ok(_result) => HttpResponse::Created().json(response),
-        Err(e) => HttpResponse::InternalServerError().json(ErrorResponse {
-            message: e.to_string(),
-        }),
+        Err(e) => HttpResponse::InternalServerError().json(ErrorResponse { message: e.to_string() }),
     }
 }
 
@@ -321,10 +295,7 @@ pub async fn login_account(db: Data<DatabaseRepository>, cred: Json<Credentials>
 }
 
 #[post("/auth/google")]
-pub async fn authenticate_external_account(
-    db: Data<DatabaseRepository>,
-    query: Query<ExternalAccountQuery>,
-) -> HttpResponse {
+pub async fn authenticate_external_account(db: Data<DatabaseRepository>, query: Query<ExternalAccountQuery>) -> HttpResponse {
     let secret = env::var("JWT_SECRET").unwrap();
     let domain = env::var("DOMAIN").unwrap();
     let app_name = env::var("APP_NAME").unwrap();
@@ -370,22 +341,14 @@ pub async fn authenticate_external_account(
 
                     let result = db.create_account(data).await;
 
-                    let id = result
-                        .as_ref()
-                        .unwrap()
-                        .inserted_id
-                        .as_object_id()
-                        .unwrap()
-                        .to_hex();
+                    let id = result.as_ref().unwrap().inserted_id.as_object_id().unwrap().to_hex();
                     let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
 
                     let response = AuthResponse { id, token };
 
                     match result {
                         Ok(_result) => HttpResponse::Created().json(response),
-                        Err(e) => HttpResponse::InternalServerError().json(ErrorResponse {
-                            message: e.to_string(),
-                        }),
+                        Err(e) => HttpResponse::InternalServerError().json(ErrorResponse { message: e.to_string() }),
                     }
                 }
             }
@@ -411,11 +374,7 @@ pub async fn authenticate_external_account(
 ///
 /// The status is either `pending` or `used`
 #[post("/auth/verification-code")]
-pub async fn get_verification_code(
-    db: Data<DatabaseRepository>,
-    redis: Data<RedisRepository>,
-    query: Query<VerificationCodeQuery>,
-) -> HttpResponse {
+pub async fn get_verification_code(db: Data<DatabaseRepository>, redis: Data<RedisRepository>, query: Query<VerificationCodeQuery>) -> HttpResponse {
     let name = query.name.to_owned();
     let email = query.email.to_owned();
 
@@ -460,9 +419,7 @@ pub async fn get_verification_code(
         Ok(_) => HttpResponse::Ok().json(ErrorResponse {
             message: "Verification code sent".to_string(),
         }),
-        Err(e) => HttpResponse::InternalServerError().json(ErrorResponse {
-            message: e.to_string(),
-        }),
+        Err(e) => HttpResponse::InternalServerError().json(ErrorResponse { message: e.to_string() }),
     }
 }
 
@@ -473,10 +430,7 @@ pub async fn get_verification_code(
 /// If the code is invalid or has been used, it returns a `400`
 /// bad request response
 #[post("/auth/verify-email")]
-pub async fn verify_email(
-    redis: Data<RedisRepository>,
-    query: Query<VerificationQuery>,
-) -> HttpResponse {
+pub async fn verify_email(redis: Data<RedisRepository>, query: Query<VerificationQuery>) -> HttpResponse {
     let email = query.email.to_owned();
     let code = query.code.to_owned();
 
@@ -501,8 +455,6 @@ pub async fn verify_email(
                 })
             }
         }
-        Err(e) => HttpResponse::InternalServerError().json(ErrorResponse {
-            message: e.to_string(),
-        }),
+        Err(e) => HttpResponse::InternalServerError().json(ErrorResponse { message: e.to_string() }),
     }
 }

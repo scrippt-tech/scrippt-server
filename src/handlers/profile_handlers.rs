@@ -41,11 +41,7 @@ pub struct ProfilePatch {
 /// }
 /// ```
 #[patch("")]
-pub async fn change_profile(
-    db: Data<DatabaseRepository>,
-    profile: Json<Vec<ProfilePatch>>,
-    auth: AuthorizationService,
-) -> HttpResponse {
+pub async fn change_profile(db: Data<DatabaseRepository>, profile: Json<Vec<ProfilePatch>>, auth: AuthorizationService) -> HttpResponse {
     let id = auth.id;
     if id.is_empty() {
         log::debug!("Invalid id");
