@@ -14,10 +14,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
-      - name: Build
-        run: cargo build --verbose
-      - name: Tests
-        run: ./bin/test
-      - name: Format check
-        run: cargo fmt --all -- --check
+      - name: Install cargo-make
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: --debug cargo-make
+      - name: Run continuous integration
+        uses: actions-rs/cargo@v1
+        with:
+          command: make
+          args: ci-flow
