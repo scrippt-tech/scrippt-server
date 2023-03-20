@@ -12,6 +12,9 @@ GOOGLE_JWK_PATH="./.jwk"
 [env.test]
 ENV="test"
 
+[env.ci]
+ENV="test"
+
 [env.dev]
 ENV="dev"
 RUST_LOG="debug"
@@ -42,7 +45,7 @@ args = ["-f", "docker-compose.test.yml", "down"]
 dependencies = ["docker"]
 
 [tasks.test]
-condition = { profiles = ["test"] }
+condition = { profiles = ["test", "ci"] }
 description = "Run tests"
 command = "cargo"
 args = ["test", "--test", "test_*"]
@@ -60,6 +63,6 @@ description = "Build the server"
 command = "cargo"
 args = ["build", "--release"]
 
-[tasks.ci]
+[tasks.ci-flow]
 description = "Run all CI tasks"
 dependencies = ["format-check", "lint", "test"]
