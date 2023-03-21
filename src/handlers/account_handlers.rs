@@ -230,8 +230,13 @@ pub async fn create_account(db: Data<DatabaseRepository>, redis: Data<RedisRepos
     let domain = env::var("DOMAIN").unwrap();
     let app_name = env::var("APP_NAME").unwrap();
     let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
+    if token.is_err() {
+        return HttpResponse::InternalServerError().json(ErrorResponse {
+            message: "Internal Server Error".to_string(),
+        });
+    }
 
-    let response = AuthResponse { id, token };
+    let response = AuthResponse { id, token: token.unwrap() };
 
     // Delete the verification code from the redis cache
     redis.del(&acc.email).await.unwrap();
@@ -290,8 +295,13 @@ pub async fn login_account(db: Data<DatabaseRepository>, cred: Json<Credentials>
     let domain = env::var("DOMAIN").unwrap();
     let app_name = env::var("APP_NAME").unwrap();
     let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
+    if token.is_err() {
+        return HttpResponse::InternalServerError().json(ErrorResponse {
+            message: "Internal Server Error".to_string(),
+        });
+    }
 
-    HttpResponse::Ok().json(AuthResponse { id, token })
+    HttpResponse::Ok().json(AuthResponse { id, token: token.unwrap() })
 }
 
 #[post("/auth/google")]
@@ -315,7 +325,13 @@ pub async fn authenticate_external_account(db: Data<DatabaseRepository>, query: 
                     // Account exists, returning token
                     let id = user.id.unwrap().to_hex();
                     let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
-                    HttpResponse::Ok().json(AuthResponse { id, token })
+                    if token.is_err() {
+                        return HttpResponse::InternalServerError().json(ErrorResponse {
+                            message: "Internal Server Error".to_string(),
+                        });
+                    }
+
+                    HttpResponse::Ok().json(AuthResponse { id, token: token.unwrap() })
                 }
                 None => {
                     // Account does not exist, creating new account
@@ -343,8 +359,13 @@ pub async fn authenticate_external_account(db: Data<DatabaseRepository>, query: 
 
                     let id = result.as_ref().unwrap().inserted_id.as_object_id().unwrap().to_hex();
                     let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
+                    if token.is_err() {
+                        return HttpResponse::InternalServerError().json(ErrorResponse {
+                            message: "Internal Server Error".to_string(),
+                        });
+                    }
 
-                    let response = AuthResponse { id, token };
+                    let response = AuthResponse { id, token: token.unwrap() };
 
                     match result {
                         Ok(_result) => HttpResponse::Created().json(response),

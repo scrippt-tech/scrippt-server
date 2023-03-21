@@ -22,7 +22,7 @@ pub struct Claims {
 }
 
 /// Encode a JWT with the given claims.
-pub fn encode_jwt(iss: String, sub: String, aud: String, secret: &str) -> String {
+pub fn encode_jwt(iss: String, sub: String, aud: String, secret: &str) -> Result<String, Error> {
     let my_claims = Claims {
         iss,
         sub,
@@ -33,9 +33,9 @@ pub fn encode_jwt(iss: String, sub: String, aud: String, secret: &str) -> String
         exp: (chrono::Utc::now() + chrono::Duration::hours(24)).timestamp() as usize,
     };
 
-    let token = encode(&Header::default(), &my_claims, &EncodingKey::from_secret(secret.as_ref())).unwrap();
+    let token = encode(&Header::default(), &my_claims, &EncodingKey::from_secret(secret.as_ref()))?;
 
-    token
+    Ok(token)
 }
 
 /// Decode a JWT with the given claims.
@@ -109,12 +109,10 @@ pub async fn decode_google_token_id(token: &str) -> Result<GoogleAuthClaims, Err
         if modified.elapsed().unwrap().as_secs() < max_age {
             jwk_set
         } else {
-            let jwk_set = get_latest_keys(key_path).await?;
-            jwk_set
+            get_latest_keys(key_path).await?
         }
     } else {
-        let jwk_set = get_latest_keys(key_path).await?;
-        jwk_set
+        get_latest_keys(key_path).await?
     };
 
     // Find the key that corresponds to the `kid` in the token's header.
