@@ -1,6 +1,6 @@
 env_files = [
-    { path = "secrets.env", profile = "dev" },
-    { path = "secrets.env", profile = "prod" }
+    { path = "secrets.env", profile = "development" },
+    { path = "secrets.env", profile = "production" }
 ]
 
 [env]
@@ -18,12 +18,12 @@ ENV="test"
 [env.ci]
 ENV="test"
 
-[env.dev]
-ENV="dev"
+[env.development]
+ENV="development"
 RUST_LOG="debug"
 
-[env.prod]
-ENV="prod"
+[env.production]
+ENV="production"
 RUST_LOG="info"
 
 [tasks.format-check]
@@ -55,13 +55,13 @@ args = ["test", "--test", "test_*"]
 dependencies = ["docker"]
 
 [tasks.watch]
-condition = { profiles = ["dev"] }
+condition = { profiles = ["development"] }
 description = "Run the server in watch mode"
 command = "cargo"
 args = ["watch", "-x", "run"]
 
 [tasks.build]
-condition = { profiles = ["prod"] }
+condition = { profiles = ["production"] }
 description = "Build the server"
 command = "cargo"
 args = ["build", "--release"]

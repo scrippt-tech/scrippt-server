@@ -201,7 +201,7 @@ pub async fn create_account(db: Data<DatabaseRepository>, redis: Data<RedisRepos
         }
     };
 
-    let secret = env::var("JWT_SECRET").unwrap(); // set this to global variable
+    let secret = env::var("JWT_SECRET").unwrap();
     let hash_password = utils::validation::generate_hash(&password);
 
     let empty_profile = Profile {
@@ -232,7 +232,7 @@ pub async fn create_account(db: Data<DatabaseRepository>, redis: Data<RedisRepos
     let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
     if token.is_err() {
         return HttpResponse::InternalServerError().json(ErrorResponse {
-            message: "Internal Server Error".to_string(),
+            message: "Failed to encode JWT".to_string(),
         });
     }
 
@@ -242,10 +242,10 @@ pub async fn create_account(db: Data<DatabaseRepository>, redis: Data<RedisRepos
     redis.del(&acc.email).await.unwrap();
 
     // Return early if we are in test environment
-    if std::env::var("ENV").unwrap() == "test" {
+    if std::env::var("ENV").unwrap() == "test" || std::env::var("ENV").unwrap() == "development" {
         return match result {
             Ok(_result) => HttpResponse::Created().json(response),
-            Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
+            Err(e) => HttpResponse::InternalServerError().json(ErrorResponse { message: e.to_string() }),
         };
     }
 
@@ -297,7 +297,7 @@ pub async fn login_account(db: Data<DatabaseRepository>, cred: Json<Credentials>
     let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
     if token.is_err() {
         return HttpResponse::InternalServerError().json(ErrorResponse {
-            message: "Internal Server Error".to_string(),
+            message: "Failed to encode JWT".to_string(),
         });
     }
 
@@ -361,7 +361,7 @@ pub async fn authenticate_external_account(db: Data<DatabaseRepository>, query: 
                     let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
                     if token.is_err() {
                         return HttpResponse::InternalServerError().json(ErrorResponse {
-                            message: "Internal Server Error".to_string(),
+                            message: "Failed to encode JWT".to_string(),
                         });
                     }
 
