@@ -1,0 +1,19 @@
+apiVersion : apps/v1
+kind: Deployment
+metadata:
+  name: scripptserver 
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scripptserver
+  template:
+    metadata:
+      labels:
+        app: scripptserver 
+    spec:
+      containers:
+        - name: scripptserver 
+          image: scripptprod.azurecr.io/scripptserver
+          ports:
+          - containerPort: 8080
