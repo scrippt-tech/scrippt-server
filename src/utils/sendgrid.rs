@@ -50,3 +50,27 @@ pub async fn send_account_created(email: &str, name: &str) -> Result<(), Sendgri
 
     Ok(())
 }
+
+/// Send contact email to info@scrippt.tech
+pub async fn send_contact_email(name: &str, email: &str, message: &str) -> Result<(), SendgridError> {
+    let api_key = std::env::var("SENDGRID_API_KEY").unwrap();
+    let client = Sender::new(api_key);
+
+    let mut template_data = HashMap::with_capacity(3);
+    template_data.insert("name".to_string(), name.to_string());
+    template_data.insert("email".to_string(), email.to_string());
+    template_data.insert("message".to_string(), message.to_string());
+
+    let personalization = Personalization::new(Email::new("info@scrippt.tech".to_string())).add_dynamic_template_data(template_data);
+    let sender = Email::new("noreply@scrippt.tech".to_string()).set_name("[CONTACT FORM] Scrippt".to_string());
+    let message = Message::new(sender)
+        .set_subject("[CONTACT FORM] From [{{name}} - {{email}}]")
+        .set_reply_to(Email::new(email.to_string()))
+        .add_personalization(personalization);
+
+    let resp = client.send(&message).await?;
+
+    log::debug!("[SENDGRID] Contact form response email: {:?}", resp);
+
+    Ok(())
+}

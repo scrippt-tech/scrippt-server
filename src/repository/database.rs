@@ -11,10 +11,10 @@ use serde_json;
 
 use crate::handlers::types::AccountPatch;
 
-use crate::models::document::DocumentInfo;
-use crate::models::profile::ProfileValue;
+use crate::models::document::document::Document;
+use crate::models::profile::profile::ProfileValue;
 use crate::models::traits::{GetFieldId, UpdateFieldId};
-use crate::models::user::{Account, User};
+use crate::models::user::{account::Account, user::User};
 
 pub struct DatabaseRepository {
     pub user_collection: Collection<User>,
@@ -242,8 +242,8 @@ impl DatabaseRepository {
     }
 
     /// Check if a document exists in the database
-    pub async fn document_exists(&self, title: &str) -> Result<bool, Error> {
-        let filter = doc! {"documents.title": title};
+    pub async fn document_exists(&self, field_id: &str) -> Result<bool, Error> {
+        let filter = doc! {"documents.field_id": field_id};
         let result = self.user_collection.find_one(filter, None).await;
         match result {
             Ok(result) => match result {
@@ -251,24 +251,26 @@ impl DatabaseRepository {
                 None => Ok(false),
             },
             Err(e) => {
-                log::error!("Failed to find document {}", title);
+                log::error!("Failed to find document {}", field_id);
                 Err(Error::DeserializationError { message: e.to_string() })
             }
         }
     }
 
     /// Add a document to the database
-    pub async fn add_document(&self, id: &str, document: DocumentInfo) -> Result<UpdateResult, Error> {
+    pub async fn add_document(&self, id: &str, mut document: Document) -> Result<UpdateResult, Error> {
         let obj_id = ObjectId::parse_str(id).expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
+        document.update_field_id(Some(ObjectId::new().to_hex()));
 
         let update = doc! {
             "$push": {
                 "documents": {
+                    "field_id": document.field_id.to_owned(),
                     "title": document.title.to_owned(),
                     "prompt": document.prompt.to_owned(),
                     "content": document.content.to_owned(),
-                    "rating": Some(document.rating),
+                    "rating": document.rating.to_owned(),
                     "date_created": document.date_created,
                     "date_updated": document.date_updated,
                 }
@@ -290,7 +292,7 @@ impl DatabaseRepository {
     }
 
     /// Update a document in the database
-    pub async fn update_document(&self, id: &str, title: &str, content: &str, rating: Option<i32>) -> Result<UpdateResult, Error> {
+    pub async fn update_document(&self, id: &str, field_id: &str, title: &str, content: &str, rating: Option<i32>) -> Result<UpdateResult, Error> {
         let obj_id = ObjectId::parse_str(id).expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
         let update = doc! {
@@ -302,7 +304,7 @@ impl DatabaseRepository {
             }
         };
         let array_filters = doc! {
-            "elem.title": title,
+            "elem.field_id": field_id,
         };
         let result = self
             .user_collection
@@ -327,13 +329,13 @@ impl DatabaseRepository {
     }
 
     /// Delete a document from the database
-    pub async fn delete_document(&self, id: &str, title: &str) -> Result<UpdateResult, Error> {
+    pub async fn delete_document(&self, id: &str, field_id: &str) -> Result<UpdateResult, Error> {
         let obj_id = ObjectId::parse_str(id).expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
         let update = doc! {
             "$pull": {
                 "documents": {
-                    "title": title,
+                    "field_id": field_id,
                 }
             }
         };

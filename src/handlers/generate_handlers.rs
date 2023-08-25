@@ -2,7 +2,7 @@ use actix_web::{post, web::Json, HttpResponse};
 use serde::{Deserialize, Serialize};
 
 use crate::auth::user_auth::AuthorizationService;
-use crate::models::profile::Profile;
+use crate::models::profile::profile::Profile;
 use crate::utils::openai::generate_request;
 
 #[derive(Debug, Serialize, Deserialize)]

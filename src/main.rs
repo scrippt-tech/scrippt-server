@@ -86,12 +86,7 @@ async fn main() -> std::io::Result<()> {
             .route("/health", web::get().to(|| async { "OK" }))
             .service(web::scope("/profile").service(profile_handlers::change_profile))
             .service(web::scope("/generate").service(generate_handlers::generate_openai))
-            .service(
-                web::scope("/document")
-                    .service(document_handlers::create_document)
-                    .service(document_handlers::update_document)
-                    .service(document_handlers::delete_document),
-            )
+            .service(web::scope("/document").service(document_handlers::create_update_document).service(document_handlers::delete_document))
     })
     .bind("0.0.0.0:8080")?
     .run()

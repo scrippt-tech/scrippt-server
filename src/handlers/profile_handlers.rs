@@ -6,7 +6,7 @@ use actix_web::{
 use serde::{Deserialize, Serialize};
 
 use crate::auth::user_auth::AuthorizationService;
-use crate::models::profile::ProfileValue;
+use crate::models::profile::profile::ProfileValue;
 use crate::repository::database::DatabaseRepository;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]

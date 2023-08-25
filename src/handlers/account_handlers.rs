@@ -14,7 +14,7 @@ use crate::{
     auth::jwt::{decode_google_token_id, encode_jwt, GoogleAuthClaims},
     repository::redis::RedisRepository,
 };
-use crate::{models::profile::Profile, models::user::User, repository::database::DatabaseRepository};
+use crate::{models::profile::profile::Profile, models::user::user::User, repository::database::DatabaseRepository};
 
 /// API route to get a user's account by id. Returns a user's account information.
 /// ### Response body (if successful):

@@ -1,4 +1,4 @@
-use crate::models::profile::Profile;
+use crate::models::profile::profile::Profile;
 use async_openai::{
     error::OpenAIError,
     types::{ChatCompletionRequestMessageArgs, CreateChatCompletionRequestArgs, CreateChatCompletionResponse, Role},
