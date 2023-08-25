@@ -11,8 +11,8 @@ resources:
 variables:
   # Container registry service connection established during pipeline creation
   dockerRegistryServiceConnection: "863a4584-a6b2-47f6-b34c-dd93854a6250"
-  imageRepository: "scripptserver"
-  containerRegistry: "scrippt.azurecr.io"
+  imageRepository: "scrippt-server"
+  containerRegistry: "scripptprod.azurecr.io"
   dockerfilePath: "$(Build.SourcesDirectory)/Dockerfile"
   tag: "$(Build.BuildId)"
 

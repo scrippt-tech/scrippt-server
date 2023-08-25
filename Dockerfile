@@ -24,7 +24,7 @@ ARG APP=/usr/src/app
 RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Expose port 8080
-EXPOSE 8080
+# EXPOSE 8080
 
 # Set environment variables
 ENV TZ=Etc/UTC \
