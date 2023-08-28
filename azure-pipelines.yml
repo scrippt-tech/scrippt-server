@@ -90,7 +90,7 @@ stages:
           runOnce:
             deploy:
               steps:
-                - reviewApp: default
+                - reviewApp: ingress-basic
 
                 - task: Kubernetes@1
                   displayName: "Create a new namespace for the pull request"
