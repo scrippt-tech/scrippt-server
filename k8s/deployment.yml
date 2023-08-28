@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scrippt-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scrippt-server
+  template:
+    metadata:
+      labels:
+        app: scrippt-server
+    spec:
+      containers:
+        - name: scrippt-server
+          image: scripptprod.azurecr.io/scrippt-server:latest
+          env:
+            - name: ENV
+              valueFrom:
+                secretKeyRef:
+                  name: scrippt-secrets
+                  key: env
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: scrippt-secrets
+                  key: mongo_uri
+            - name: REDIS_URI
+              valueFrom:
+                secretKeyRef:
+                  name: scrippt-secrets
+                  key: redis_uri
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: scrippt-secrets
+                  key: jwt_secret
+            - name: APP_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: scrippt-secrets
+                  key: app_name
+            - name: DOMAIN
+              valueFrom:
+                secretKeyRef:
+                  name: scrippt-secrets
+                  key: domain
+            - name: GOOGLE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: scrippt-secrets
+                  key: google_client_id
+            - name: RUST_LOG
+              valueFrom:
+                secretKeyRef:
+                  name: scrippt-secrets
+                  key: rust_log
+            - name: GOOGLE_JWK_PATH
+              valueFrom:
+                secretKeyRef:
+                  name: scrippt-secrets
+                  key: google_jwk_path
+            - name: SENDGRID_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: scrippt-secrets
+                  key: sendgrid_api_key
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: scrippt-secrets
+                  key: openai_api_key
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"

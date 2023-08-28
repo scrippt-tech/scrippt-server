@@ -7,8 +7,8 @@
 FROM rust:1.66.1 AS builder
 
 # Create app directory
-RUN USER=root cargo new --bin scrippt-api
-WORKDIR /scrippt-api
+RUN USER=root cargo new --bin server
+WORKDIR /server
 
 # Copy your directory over
 ADD . ./
