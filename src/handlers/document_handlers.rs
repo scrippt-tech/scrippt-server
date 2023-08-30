@@ -20,6 +20,9 @@ pub struct DocumentRequest {
     pub content: String,
 }
 
+// MAX_DOCUMENTS macro
+const MAX_DOCUMENTS: usize = 3;
+
 #[put("")]
 pub async fn create_update_document(db: Data<DatabaseRepository>, doc: Json<DocumentRequest>, auth: AuthorizationService) -> HttpResponse {
     let id = auth.id;
@@ -59,6 +62,14 @@ pub async fn create_update_document(db: Data<DatabaseRepository>, doc: Json<Docu
             date_created: Some(chrono::Utc::now().timestamp()),
             date_updated: Some(chrono::Utc::now().timestamp()),
         };
+
+        // Check if user has reached max documents
+        let account = db.get_account(&id).await.unwrap();
+        if (account.documents.len()) >= MAX_DOCUMENTS {
+            return HttpResponse::BadRequest().body(
+                "Max documents reached. We are working on functionality to add more documents. In the meantime, please delete one of your documents to add a new one.",
+            );
+        }
 
         match db.add_document(&id, new_doc).await {
             Ok(result) => {

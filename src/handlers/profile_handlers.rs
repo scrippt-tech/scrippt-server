@@ -16,6 +16,9 @@ pub struct ProfilePatch {
     pub value: ProfileValue,
 }
 
+// MAX_PROFILE_FIELD macro
+const MAX_PROFILE_FIELD: usize = 5;
+
 /// # Change a user profile
 /// Follows RFC 6902
 ///
@@ -57,6 +60,9 @@ pub async fn change_profile(db: Data<DatabaseRepository>, profile: Json<Vec<Prof
         log::debug!("Value: {:#?}", value);
         match order.op.as_str() {
             "add" => {
+                if maxed_profile_field(&db, &id, &target).await.is_err() {
+                    return HttpResponse::BadRequest().body(format!("Max fields for {} reached. Remove to add a new one", target));
+                }
                 match db.add_profile_field(&id, target, value, date).await {
                     Ok(_result) => continue,
                     Err(e) => return HttpResponse::InternalServerError().json(e.to_string()),
@@ -84,4 +90,29 @@ pub async fn change_profile(db: Data<DatabaseRepository>, profile: Json<Vec<Prof
         Ok(user) => HttpResponse::Ok().json(user),
         Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
     }
+}
+
+async fn maxed_profile_field(db: &DatabaseRepository, id: &str, field: &str) -> Result<bool, String> {
+    let profile = db.get_account(id).await.unwrap().profile;
+    match field {
+        "experience" => {
+            if profile.experience.len() >= MAX_PROFILE_FIELD {
+                return Err("Max experience fields reached".to_owned());
+            }
+        }
+        "education" => {
+            if profile.education.len() >= MAX_PROFILE_FIELD {
+                return Err("Max education fields reached".to_owned());
+            }
+        }
+        "skills" => {
+            if profile.skills.len() >= MAX_PROFILE_FIELD {
+                return Err("Max skills fields reached".to_owned());
+            }
+        }
+        _ => {
+            return Err("Invalid field".to_owned());
+        }
+    }
+    Ok(true)
 }
