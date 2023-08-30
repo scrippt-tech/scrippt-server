@@ -11,10 +11,10 @@ resources:
 variables:
   # Container registry service connection established during pipeline creation
   dockerRegistryServiceConnection: "8e685a78-6f25-471f-b02d-9189cf795aa9"
-  imageRepository: "santiagomedscripptserver"
+  imageRepository: "scrippt-server"
   containerRegistry: "scripptprod.azurecr.io"
   dockerfilePath: "**/Dockerfile"
-  tag: "$(Build.BuildId)"
+  tag: "latest"
   imagePullSecret: "scripptprod94747831-auth"
 
   # Agent VM image name
