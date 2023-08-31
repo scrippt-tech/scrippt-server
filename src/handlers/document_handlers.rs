@@ -18,6 +18,7 @@ pub struct DocumentRequest {
     pub title: String,
     pub prompt: String,
     pub content: String,
+    pub rating: Rating,
 }
 
 // MAX_DOCUMENTS macro
@@ -33,7 +34,7 @@ pub async fn create_update_document(db: Data<DatabaseRepository>, doc: Json<Docu
 
     log::debug!("Document: {:#?}", doc);
     if doc.field_id.is_some() && db.document_exists(doc.field_id.as_ref().unwrap()).await.unwrap() {
-        match db.update_document(&id, doc.field_id.as_ref().unwrap(), &doc.title, &doc.content, None).await {
+        match db.update_document(&id, doc.field_id.as_ref().unwrap(), &doc.title, &doc.content, &doc.rating).await {
             Ok(result) => {
                 if result.matched_count == 1 {
                     match db.get_account(&id).await {
@@ -58,7 +59,7 @@ pub async fn create_update_document(db: Data<DatabaseRepository>, doc: Json<Docu
             title: doc.title.to_owned(),
             prompt: doc.prompt.to_owned(),
             content: doc.content.to_owned(),
-            rating: Rating::None,
+            rating: doc.rating.to_owned(),
             date_created: Some(chrono::Utc::now().timestamp()),
             date_updated: Some(chrono::Utc::now().timestamp()),
         };

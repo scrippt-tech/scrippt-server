@@ -10,7 +10,7 @@ pub struct Experience {
 
     /// Type of experience (e.g. Work, Volunteer, Personal, Other)
     #[serde(rename = "type")]
-    pub type_: ExperienceType, // Do we care about this?
+    pub type_: ExperienceType,
 
     /// Name of company, organization, etc.
     pub at: String,
@@ -23,6 +23,7 @@ pub struct Experience {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ExperienceType {
     /// Experience is work
     Work,

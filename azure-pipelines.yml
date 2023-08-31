@@ -39,7 +39,7 @@ stages:
               tags: |
                 $(tag)
 
-          - upload: manifests
+          - upload: k8s
             artifact: k8s
 
   - stage: Deploy

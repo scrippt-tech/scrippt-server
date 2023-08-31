@@ -9,7 +9,7 @@ use mongodb::{
 };
 use serde_json;
 
-use crate::handlers::types::AccountPatch;
+use crate::{handlers::types::AccountPatch, models::document::document::Rating};
 
 use crate::models::document::document::Document;
 use crate::models::profile::profile::ProfileValue;
@@ -292,7 +292,7 @@ impl DatabaseRepository {
     }
 
     /// Update a document in the database
-    pub async fn update_document(&self, id: &str, field_id: &str, title: &str, content: &str, rating: Option<i32>) -> Result<UpdateResult, Error> {
+    pub async fn update_document(&self, id: &str, field_id: &str, title: &str, content: &str, rating: &Rating) -> Result<UpdateResult, Error> {
         let obj_id = ObjectId::parse_str(id).expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
         let update = doc! {
