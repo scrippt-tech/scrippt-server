@@ -59,7 +59,7 @@ async fn test_profile() {
 
     let experience = serde_json::json!({
         "name": "Software Engineer",
-        "type": "Work",
+        "type": "work",
         "at": "Google",
         "current": true,
         "description": "Worked on Google Cloud Platform",

@@ -54,6 +54,20 @@ command = "cargo"
 args = ["test", "--test", "test_*"]
 dependencies = ["docker"]
 
+[tasks.test-account]
+condition = { profiles = ["test", "ci"] }
+description = "Run tests for account"
+command = "cargo"
+args = ["test", "--test", "test_account"]
+dependencies = ["docker"]
+
+[tasks.test-profile]
+condition = { profiles = ["test", "ci"] }
+description = "Run tests for profile"
+command = "cargo"
+args = ["test", "--test", "test_profile"]
+dependencies = ["docker"]
+
 [tasks.watch]
 condition = { profiles = ["development"] }
 description = "Run the server in watch mode"
