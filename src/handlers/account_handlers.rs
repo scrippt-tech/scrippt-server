@@ -323,11 +323,34 @@ pub async fn authenticate_external_account(db: Data<DatabaseRepository>, query: 
             match user {
                 Some(user) => {
                     // Account exists, returning token
+                    if user.external_id.is_none() || user.external_provider.is_none() {
+                        let updates = vec![
+                            AccountPatch {
+                                path: "external_id".to_string(),
+                                value: google_claims.sub.to_string(),
+                            },
+                            AccountPatch {
+                                path: "external_provider".to_string(),
+                                value: "google".to_string(),
+                            },
+                        ];
+                        let update_result = db.update_account_many(&user.id.unwrap().to_hex(), updates).await;
+                        if update_result.is_err() {
+                            let error_msg = "An account already exists under that email. Error migrating account.";
+                            log::error!("{}", error_msg);
+                            return HttpResponse::InternalServerError().json(ErrorResponse {
+                                message: error_msg.to_string(),
+                            });
+                        }
+                    }
+
                     let id = user.id.unwrap().to_hex();
                     let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
                     if token.is_err() {
+                        let error_msg = "Failed to encode JWT";
+                        log::error!("{}", error_msg);
                         return HttpResponse::InternalServerError().json(ErrorResponse {
-                            message: "Internal Server Error".to_string(),
+                            message: error_msg.to_string(),
                         });
                     }
 

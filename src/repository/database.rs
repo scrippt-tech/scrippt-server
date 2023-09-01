@@ -107,14 +107,21 @@ impl DatabaseRepository {
 
     /// Update an existing account's name and email
     pub async fn update_account(&self, id: &str, update: AccountPatch) -> Result<UpdateResult, Error> {
+        return self.update_account_many(id, vec![update]).await;
+    }
+
+    // Update an existing account multiple fields
+    pub async fn update_account_many(&self, id: &str, updates: Vec<AccountPatch>) -> Result<UpdateResult, Error> {
         let obj_id = ObjectId::parse_str(id).expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
-        let new_doc = doc! {
-            "$set": {
-                update.path: update.value
-            }
+        let mut fields = doc! {};
+        for update in updates {
+            fields.insert(update.path, update.value);
+        }
+        let update = doc! {
+            "$set": fields
         };
-        let updated_doc = self.user_collection.update_one(filter, new_doc, None).await;
+        let updated_doc = self.user_collection.update_one(filter, update, None).await;
         match updated_doc {
             Ok(result) => match result.modified_count {
                 1 => Ok(result),
