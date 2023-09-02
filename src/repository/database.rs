@@ -159,13 +159,13 @@ impl DatabaseRepository {
     }
 
     /// Update profile embedded document
-    pub async fn update_profile(&self, id: &str, profile: Profile) -> Result<UpdateResult, Error> {
+    pub async fn update_profile(&self, id: &str, mut profile: Profile) -> Result<UpdateResult, Error> {
         let obj_id = ObjectId::parse_str(id).expect("Failed to parse object id");
         let filter = doc! {"_id": obj_id};
+        profile.date_updated = Some(chrono::Utc::now().timestamp());
         let update = doc! {
             "$set": {
                 "profile": to_bson(&profile).unwrap(),
-                "profile.date_updated": chrono::Utc::now().timestamp(),
             }
         };
         let result = self.user_collection.update_one(filter, update, None).await;
@@ -173,7 +173,7 @@ impl DatabaseRepository {
             Ok(result) => match result.modified_count {
                 1 => Ok(result),
                 _ => Err(Error::DeserializationError {
-                    message: "Failed to update document".to_string(),
+                    message: "Failed to update profile for account".to_string(),
                 }),
             },
             Err(e) => {

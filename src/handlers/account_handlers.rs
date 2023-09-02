@@ -313,7 +313,10 @@ pub async fn authenticate_external_account(db: Data<DatabaseRepository>, query: 
     let token = query.token_id.to_owned();
     let google_claims: GoogleAuthClaims = match decode_google_token_id(&token).await {
         Ok(c) => c,
-        Err(e) => return HttpResponse::BadRequest().json(e.to_string()),
+        Err(e) => {
+            log::error!("Failed to decode google token. Error: {}", e);
+            return HttpResponse::BadRequest().json(e.to_string());
+        }
     };
     let email = google_claims.email;
 

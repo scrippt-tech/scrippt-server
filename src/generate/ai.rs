@@ -98,38 +98,39 @@ impl AIClient {
         let request = CreateChatCompletionRequestArgs::default()
             .max_tokens(1024u16)
             .model(self.model)
+            .temperature(0.2)
             .messages([
                 ChatCompletionRequestMessageArgs::default()
                     .role(Role::System)
                     .content(
-                        "You are an extremely accurate resume parser. When you get a resume, you need to clean the text and extract the following information in the format specified below:
+                        "You are an extremely accurate resume parser. When you get a resume, you need to clean the text and extract the following information in the following format:
                         {
                             \"education\": [
                                 {
-                                    \"school\": <string>,
-                                    \"degree\": <string>,
-                                    \"field_of_study\": <string>,
-                                    \"current\": <bool>,
-                                    \"description\": <string>,
+                                    \"school\": <string>, // name of the school (e.g. University of California, Berkeley)
+                                    \"degree\": <string>, // degree type (e.g. Bachelor of Science)
+                                    \"field_of_study\": <string>, // field of study (e.g. Computer Science)
+                                    \"current\": <bool>, // whether the candidate is currently enrolled
+                                    \"description\": <string>, // description of the degree (e.g. GPA, honors)
                                 }
                             ],
                             \"experience\": [
                                 {
-                                    \"name\": <string>,
-                                    \"type\": 'work' | 'volunteer' | 'personal' | 'other',
-                                    \"at\": <string>,
-                                    \"current\": <bool>,
-                                    \"description\": <string>,
+                                    \"name\": <string>, // name of the position (e.g. HR Manager)
+                                    \"type\": 'work' | 'volunteer' | 'personal' | 'other', // type of experience
+                                    \"at\": <string>, // name of the company (e.g. Google)
+                                    \"current\": <bool>, // whether the candidate currently works here
+                                    \"description\": <string>, // description of the position (e.g. responsibilities)
                                 }
                             ],
                             \"skills\": [
                                 {
-                                    \"skill\": <string> [THIS IS A SINGLE WORD],
+                                    \"skill\": <string>, // name of the skill (e.g. Python, Javascript, Leadership, MacOS)
                                 }
                             ],
                         }
                         ").build()?,
-                ChatCompletionRequestMessageArgs::default().role(Role::System).content("You can consider sections named 'Projects' as experience.").build()?,
+                ChatCompletionRequestMessageArgs::default().role(Role::System).content("None of the values can be null.").build()?,
                 ChatCompletionRequestMessageArgs::default().role(Role::System).content(resume_text).build()?,
                 ChatCompletionRequestMessageArgs::default().role(Role::System).content("Extracted information:").build()?,
             ])

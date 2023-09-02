@@ -85,7 +85,7 @@ async fn main() -> std::io::Result<()> {
             )
             .route("/health", web::get().to(|| async { "OK" }))
             .service(web::scope("/profile").service(profile_handlers::change_profile))
-            .service(web::scope("/generate").service(generate_handlers::generate_openai))
+            .service(web::scope("/generate").service(generate_handlers::generate_openai).service(generate_handlers::profile_from_resume))
             .service(web::scope("/document").service(document_handlers::create_update_document).service(document_handlers::delete_document))
     })
     .bind("0.0.0.0:8080")?

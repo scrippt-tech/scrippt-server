@@ -1,6 +1,6 @@
 env_files = [
-    { path = "secrets.env", profile = "development" },
-    { path = "secrets.env", profile = "production" }
+    { path = ".secrets.env", profile = "development" },
+    { path = ".secrets.env", profile = "production" }
 ]
 
 [env]

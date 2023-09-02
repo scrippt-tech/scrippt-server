@@ -4,6 +4,7 @@
 # Project
 target/
 *.env
+.env.sh
 
 # VSCode
 .vscode
