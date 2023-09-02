@@ -1,4 +1,4 @@
-use super::{experience::Experience, experience::ExperienceType, profile::ProfileValue};
+use super::{education::Education, experience::Experience, experience::ExperienceType, profile::ProfileValue, skills::Skills};
 use crate::models::traits::{GetFieldId, UpdateFieldId};
 use bson::oid::ObjectId;
 
@@ -29,6 +29,24 @@ impl GetFieldId for ProfileValue {
             ProfileValue::Skills(skill) => skill.field_id.clone(),
             ProfileValue::FieldId(field_id) => Some(field_id.clone()),
         }
+    }
+}
+
+impl UpdateFieldId for Education {
+    fn update_field_id(&mut self, new_id: Option<String>) {
+        self.field_id = new_id;
+    }
+}
+
+impl UpdateFieldId for Experience {
+    fn update_field_id(&mut self, new_id: Option<String>) {
+        self.field_id = new_id;
+    }
+}
+
+impl UpdateFieldId for Skills {
+    fn update_field_id(&mut self, new_id: Option<String>) {
+        self.field_id = new_id;
     }
 }
 

@@ -9,7 +9,10 @@ use mongodb::{
 };
 use serde_json;
 
-use crate::{handlers::types::AccountPatch, models::document::document::Rating};
+use crate::{
+    handlers::types::AccountPatch,
+    models::{document::document::Rating, profile::profile::Profile},
+};
 
 use crate::models::document::document::Document;
 use crate::models::profile::profile::ProfileValue;
@@ -150,6 +153,31 @@ impl DatabaseRepository {
             },
             Err(e) => {
                 log::error!("Failed to delete account {}", id);
+                Err(Error::DeserializationError { message: e.to_string() })
+            }
+        }
+    }
+
+    /// Update profile embedded document
+    pub async fn update_profile(&self, id: &str, profile: Profile) -> Result<UpdateResult, Error> {
+        let obj_id = ObjectId::parse_str(id).expect("Failed to parse object id");
+        let filter = doc! {"_id": obj_id};
+        let update = doc! {
+            "$set": {
+                "profile": to_bson(&profile).unwrap(),
+                "profile.date_updated": chrono::Utc::now().timestamp(),
+            }
+        };
+        let result = self.user_collection.update_one(filter, update, None).await;
+        match result {
+            Ok(result) => match result.modified_count {
+                1 => Ok(result),
+                _ => Err(Error::DeserializationError {
+                    message: "Failed to update document".to_string(),
+                }),
+            },
+            Err(e) => {
+                log::error!("Failed to update profile for account {}", id);
                 Err(Error::DeserializationError { message: e.to_string() })
             }
         }
