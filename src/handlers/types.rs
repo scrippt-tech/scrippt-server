@@ -2,11 +2,26 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ErrorResponse {
-    /// The error message.
+    /// The error explanation.
     pub message: String,
+
+    /// The error message.
+    pub error: String,
 }
 
 impl ErrorResponse {
+    pub fn new(message: String, error: String) -> Self {
+        Self { message, error }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MessageResponse {
+    /// The message.
+    pub message: String,
+}
+
+impl MessageResponse {
     pub fn new(message: String) -> Self {
         Self { message }
     }

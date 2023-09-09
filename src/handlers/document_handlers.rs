@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     auth::user_auth::AuthorizationService,
+    handlers::types::ErrorResponse,
     models::document::document::{Document, Rating},
     repository::database::DatabaseRepository,
 };
@@ -21,7 +22,7 @@ pub struct DocumentRequest {
     pub rating: Rating,
 }
 
-// MAX_DOCUMENTS macro
+// MAX_DOCUMENTS
 const MAX_DOCUMENTS: usize = 3;
 
 #[put("")]
@@ -35,22 +36,16 @@ pub async fn create_update_document(db: Data<DatabaseRepository>, doc: Json<Docu
     log::debug!("Document: {:#?}", doc);
     if doc.field_id.is_some() && db.document_exists(doc.field_id.as_ref().unwrap()).await.unwrap() {
         match db.update_document(&id, doc.field_id.as_ref().unwrap(), &doc.title, &doc.content, &doc.rating).await {
-            Ok(result) => {
-                if result.matched_count == 1 {
-                    match db.get_account(&id).await {
-                        Ok(user) => HttpResponse::Ok().json(user),
-                        Err(e) => {
-                            log::error!("Error: {:#?}", e);
-                            HttpResponse::InternalServerError().json(e.to_string())
-                        }
-                    }
-                } else {
-                    HttpResponse::InternalServerError().body("Error")
+            Ok(_) => match db.get_account(&id).await {
+                Ok(user) => HttpResponse::Ok().json(user),
+                Err(e) => {
+                    log::error!("Error: {:#?}", e);
+                    HttpResponse::InternalServerError().json(e.to_string())
                 }
-            }
+            },
             Err(e) => {
                 log::error!("Error: {:#?}", e);
-                HttpResponse::InternalServerError().json(e.to_string())
+                HttpResponse::InternalServerError().json(ErrorResponse::new("error updating document".to_string(), e.to_string()))
             }
         }
     } else {
@@ -73,22 +68,16 @@ pub async fn create_update_document(db: Data<DatabaseRepository>, doc: Json<Docu
         }
 
         match db.add_document(&id, new_doc).await {
-            Ok(result) => {
-                if result.matched_count == 1 {
-                    match db.get_account(&id).await {
-                        Ok(user) => HttpResponse::Ok().json(user),
-                        Err(e) => {
-                            log::error!("Error: {:#?}", e);
-                            HttpResponse::InternalServerError().json(e.to_string())
-                        }
-                    }
-                } else {
-                    HttpResponse::InternalServerError().body("Error")
+            Ok(_) => match db.get_account(&id).await {
+                Ok(user) => HttpResponse::Ok().json(user),
+                Err(e) => {
+                    log::error!("Error: {:#?}", e);
+                    HttpResponse::InternalServerError().json(ErrorResponse::new("error getting account".to_string(), e.to_string()))
                 }
-            }
+            },
             Err(e) => {
                 log::error!("Error: {:#?}", e);
-                HttpResponse::InternalServerError().json(e.to_string())
+                HttpResponse::InternalServerError().json(ErrorResponse::new("error adding document".to_string(), e.to_string()))
             }
         }
     }
@@ -102,22 +91,16 @@ pub async fn delete_document(db: Data<DatabaseRepository>, path: Path<String>, a
     }
     let field_id = path.into_inner();
     match db.delete_document(&id, &field_id).await {
-        Ok(result) => {
-            if result.matched_count == 1 {
-                match db.get_account(&id).await {
-                    Ok(user) => HttpResponse::Ok().json(user),
-                    Err(e) => {
-                        log::error!("Error: {:#?}", e);
-                        HttpResponse::InternalServerError().json(e.to_string())
-                    }
-                }
-            } else {
-                HttpResponse::InternalServerError().body("Error")
+        Ok(_) => match db.get_account(&id).await {
+            Ok(user) => HttpResponse::Ok().json(user),
+            Err(e) => {
+                log::error!("Error: {:#?}", e);
+                HttpResponse::InternalServerError().json(ErrorResponse::new("error getting account".to_string(), e.to_string()))
             }
-        }
+        },
         Err(e) => {
             log::error!("Error: {:#?}", e);
-            HttpResponse::InternalServerError().json(e.to_string())
+            HttpResponse::InternalServerError().json(ErrorResponse::new("error deleting document".to_string(), e.to_string()))
         }
     }
 }

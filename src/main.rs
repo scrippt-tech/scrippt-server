@@ -54,7 +54,7 @@ async fn main() -> std::io::Result<()> {
 
     // Database
     let db = DatabaseRepository::new(&env::var("MONGO_URI").unwrap()).await;
-    let data = web::Data::new(db);
+    let db_data = web::Data::new(db);
 
     // Redis
     let redis = RedisRepository::new(&env::var("REDIS_URI").unwrap());
@@ -71,7 +71,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .wrap(NormalizePath::trim())
             .app_data(redis_data.clone())
-            .app_data(data.clone())
+            .app_data(db_data.clone())
             .service(
                 web::scope("/account")
                     .service(account_handlers::get_account_by_id)
@@ -84,8 +84,8 @@ async fn main() -> std::io::Result<()> {
                     .service(account_handlers::verify_email),
             )
             .route("/health", web::get().to(|| async { "OK" }))
-            .service(web::scope("/profile").service(profile_handlers::change_profile))
-            .service(web::scope("/generate").service(generate_handlers::generate_openai).service(generate_handlers::profile_from_resume))
+            .service(web::scope("/profile").service(profile_handlers::change_profile).service(profile_handlers::profile_from_resume))
+            .service(web::scope("/generate").service(generate_handlers::generate_openai))
             .service(web::scope("/document").service(document_handlers::create_update_document).service(document_handlers::delete_document))
     })
     .bind("0.0.0.0:8080")?

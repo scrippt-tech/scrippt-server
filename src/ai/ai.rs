@@ -1,10 +1,11 @@
 use crate::models::profile::profile::Profile;
 use async_openai::{
-    error::OpenAIError,
-    types::{ChatCompletionRequestMessageArgs, CreateChatCompletionRequestArgs, CreateChatCompletionResponse, Role},
+    types::{ChatCompletionRequestMessageArgs, CreateChatCompletionRequestArgs, Role},
     Client,
 };
-use pdf_extract;
+
+use super::error::AIClientError;
+use super::response::AIClientResponse;
 
 pub struct AIClient {
     client: Client,
@@ -35,26 +36,26 @@ impl AIClient {
     /// Generate a chat completion request. Uses the async_openai
     /// crate to generate a request to the OpenAI API.
     ///
-    /// The model is set to gpt-3.5-turbo.
-    ///
     /// # Example
     /// ```rust
-    /// use server::models::profile::Profile;
-    /// use server::utils::openai::generate_request;
     ///
-    /// let response = generate_request(
+    /// use server::models::profile::profile::Profile;
+    /// use server::ai::ai::AIClient;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    /// let client = AIClient::new();
+    /// let response = client.generate_request(
     ///    "Why do you want to work at this company?".to_string(),
-    ///    Profile::default(),
-    ///    "I am a hard worker and I am very passionate about this job.".to_string(),
-    /// ).await;
+    /// Profile::default(),
+    ///    "I am a hard worker and I am very passionate about this job.".to_string())
+    ///    .await
+    ///    .unwrap(); // This assumes that the request was successful
     ///
-    /// let response = response.unwrap(); // This assumes that the request was successful
-    ///
-    /// for choice in response.choices {
-    ///    println!("Response: {:#?}", choice.message.content);
+    /// println!("Response: {:#?}", response.text);
     /// }
     /// ```
-    pub async fn generate_request(self, prompt: String, profile: Profile, additional: String) -> Result<CreateChatCompletionResponse, OpenAIError> {
+    pub async fn generate_request(self, prompt: String, profile: Profile, additional: String) -> Result<AIClientResponse, AIClientError> {
         let request = CreateChatCompletionRequestArgs::default()
             .max_tokens(1024u16)
             .model(self.model)
@@ -89,12 +90,26 @@ impl AIClient {
             .build()?;
         log::debug!("Request: {:#?}", request);
 
-        self.client.chat().create(request).await
+        match self.client.chat().create(request).await {
+            Ok(res) => Ok(AIClientResponse::new(res.choices[0].to_owned().message.content, res.usage)),
+            Err(e) => Err(AIClientError::openai(e)),
+        }
     }
 
     /// Process a resume and extract the information from it.
-    pub async fn process_resume(self, resume_as_bytes: Vec<u8>) -> Result<CreateChatCompletionResponse, OpenAIError> {
-        let resume_text = pdf_extract::extract_text_from_mem(&resume_as_bytes).unwrap();
+    ///
+    /// # Example
+    /// ```rust
+    /// use server::ai::ai::AIClient;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///    let client = AIClient::new();
+    ///    let response = client.process_resume(include_bytes!("../../tests/sample-resume.pdf").to_vec()).await;
+    ///    assert!(response.is_ok());
+    /// }
+    /// ```
+    pub async fn process_resume(self, resume_text: String) -> Result<AIClientResponse, AIClientError> {
         let request = CreateChatCompletionRequestArgs::default()
             .max_tokens(1024u16)
             .model(self.model)
@@ -137,13 +152,17 @@ impl AIClient {
             .build()?;
         log::debug!("Request: {:#?}", request);
 
-        self.client.chat().create(request).await
+        match self.client.chat().create(request).await {
+            Ok(res) => Ok(AIClientResponse::new(res.choices[0].to_owned().message.content, res.usage)),
+            Err(e) => Err(AIClientError::openai(e)),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pdf_extract::extract_text;
 
     #[tokio::test]
     async fn test_generate_request() {
@@ -158,9 +177,11 @@ mod tests {
         assert!(response.is_ok());
     }
 
-    // #[tokio::test]
-    // async fn test_process_resume() {
-    //     let client = AIClient::new();
-    //     let response = client.process_resume(include_bytes!("../../tests/resume.pdf").to_vec()).await;q
-    // }
+    #[tokio::test]
+    async fn test_process_resume() {
+        let client = AIClient::new();
+        let resume_text = extract_text("../../tests/sample-resume.pdf").unwrap();
+        let response = client.process_resume(resume_text).await;
+        assert!(response.is_ok());
+    }
 }

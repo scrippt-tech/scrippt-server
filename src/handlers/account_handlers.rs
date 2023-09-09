@@ -16,6 +16,8 @@ use crate::{
 };
 use crate::{models::profile::profile::Profile, models::user::user::User, repository::database::DatabaseRepository};
 
+use super::types::MessageResponse;
+
 /// API route to get a user's account by id. Returns a user's account information.
 /// ### Response body (if successful):
 /// ```
@@ -31,9 +33,7 @@ use crate::{models::profile::profile::Profile, models::user::user::User, reposit
 pub async fn get_account_by_id(db: Data<DatabaseRepository>, auth: AuthorizationService) -> HttpResponse {
     let id = auth.id;
     if id.is_empty() {
-        return HttpResponse::BadRequest().json(ErrorResponse {
-            message: "Invalid id".to_string(),
-        });
+        return HttpResponse::BadRequest().json(ErrorResponse::new("Error getting account".to_string(), "Id is empty".to_string()));
     }
 
     match db.get_account(&id).await {
@@ -41,7 +41,7 @@ pub async fn get_account_by_id(db: Data<DatabaseRepository>, auth: Authorization
             log::debug!("Account: {:?}", acc);
             HttpResponse::Ok().json(acc)
         }
-        Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
+        Err(e) => HttpResponse::InternalServerError().json(ErrorResponse::new("error getting account".to_string(), e.to_string())),
     }
 }
 
@@ -66,13 +66,11 @@ pub async fn get_account_by_id(db: Data<DatabaseRepository>, auth: Authorization
 pub async fn update_account(db: Data<DatabaseRepository>, mut req: Json<AccountPatch>, auth: AuthorizationService) -> HttpResponse {
     let id = auth.id;
     if id.is_empty() {
-        return HttpResponse::BadRequest().json(ErrorResponse {
-            message: "Invalid id".to_string(),
-        });
+        return HttpResponse::BadRequest().json(ErrorResponse::new("Error updating account".to_string(), "Id is empty".to_string()));
     }
 
     if req.path != "name" && req.path != "email" && req.path != "password" {
-        return HttpResponse::BadRequest().body("Invalid path");
+        return HttpResponse::BadRequest().json(ErrorResponse::new("Error updating account".to_string(), "Invalid path".to_string()));
     }
 
     if req.path == "password" {
@@ -93,9 +91,7 @@ pub async fn update_account(db: Data<DatabaseRepository>, mut req: Json<AccountP
             if acc.matched_count == 1 {
                 HttpResponse::Ok().json(res)
             } else {
-                HttpResponse::NotFound().json(ErrorResponse {
-                    message: "Account not found".to_string(),
-                })
+                HttpResponse::NotFound().json(ErrorResponse::new("Error updating accoung".to_string(), "Account not found".to_string()))
             }
         }
         Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
@@ -106,9 +102,7 @@ pub async fn update_account(db: Data<DatabaseRepository>, mut req: Json<AccountP
 pub async fn delete_account(db: Data<DatabaseRepository>, auth: AuthorizationService) -> HttpResponse {
     let id = auth.id;
     if id.is_empty() {
-        return HttpResponse::BadRequest().json(ErrorResponse {
-            message: "Invalid id".to_string(),
-        });
+        return HttpResponse::BadRequest().json(ErrorResponse::new("Error deleting account".to_string(), "Id is empty".to_string()));
     }
 
     let update_result = db.delete_account(&id).await;
@@ -118,9 +112,7 @@ pub async fn delete_account(db: Data<DatabaseRepository>, auth: AuthorizationSer
             if acc.deleted_count == 1 {
                 HttpResponse::NoContent().finish()
             } else {
-                HttpResponse::NotFound().json(ErrorResponse {
-                    message: "Account not found".to_string(),
-                })
+                HttpResponse::NotFound().json(ErrorResponse::new("Error deleting account".to_string(), "Account not found".to_string()))
             }
         }
         Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
@@ -154,16 +146,15 @@ pub async fn create_account(db: Data<DatabaseRepository>, redis: Data<RedisRepos
     match user {
         Ok(user) => {
             if user.is_some() {
-                return HttpResponse::Conflict().json(ErrorResponse {
-                    message: "Account already exists".to_string(),
-                });
+                return HttpResponse::Conflict().json(ErrorResponse::new(
+                    "Account already exists".to_string(),
+                    "Email already exists".to_string(),
+                ));
             }
         }
         Err(e) => {
             log::error!("Error: {}", e);
-            return HttpResponse::InternalServerError().json(ErrorResponse {
-                message: "Internal Server Error".to_string(),
-            });
+            return HttpResponse::InternalServerError().json(ErrorResponse::new("Internal Server Error".to_string(), e.to_string()));
         }
     }
 
@@ -188,16 +179,17 @@ pub async fn create_account(db: Data<DatabaseRepository>, redis: Data<RedisRepos
         Some(p) => p,
         None => {
             log::debug!("Password is required");
-            return HttpResponse::BadRequest().json(ErrorResponse {
-                message: "Password is required".to_string(),
-            });
+            return HttpResponse::BadRequest().json(ErrorResponse::new(
+                "Error creating account".to_string(),
+                "Password is required".to_string(),
+            ));
         }
     };
     match utils::validation::validate_signup(&acc.email, &password) {
         Ok(_) => (),
         Err(e) => {
             log::debug!("Invalid signup: {}", e);
-            return HttpResponse::BadRequest().json(ErrorResponse { message: e });
+            return HttpResponse::BadRequest().json(ErrorResponse::new("Invalid signup".to_string(), e.to_string()));
         }
     };
 
@@ -231,21 +223,22 @@ pub async fn create_account(db: Data<DatabaseRepository>, redis: Data<RedisRepos
     let app_name = env::var("APP_NAME").unwrap();
     let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
     if token.is_err() {
-        return HttpResponse::InternalServerError().json(ErrorResponse {
-            message: "Failed to encode JWT".to_string(),
-        });
+        return HttpResponse::InternalServerError().json(ErrorResponse::new("Error creating account".to_string(), token.unwrap_err().to_string()));
     }
 
     let response = AuthResponse { id, token: token.unwrap() };
 
     // Delete the verification code from the redis cache
-    redis.del(&acc.email).await.unwrap();
+    let res = redis.del(&acc.email).await;
+    if res.is_err() {
+        log::error!("Error deleting verification code from redis cache: {:?}", res);
+    }
 
     // Return early if we are in test environment
     if std::env::var("ENV").unwrap() == "test" || std::env::var("ENV").unwrap() == "development" {
         return match result {
             Ok(_result) => HttpResponse::Created().json(response),
-            Err(e) => HttpResponse::InternalServerError().json(ErrorResponse { message: e.to_string() }),
+            Err(e) => HttpResponse::InternalServerError().json(ErrorResponse::new("Error creating account".to_string(), e.to_string())),
         };
     }
 
@@ -256,27 +249,20 @@ pub async fn create_account(db: Data<DatabaseRepository>, redis: Data<RedisRepos
 
     match result {
         Ok(_result) => HttpResponse::Created().json(response),
-        Err(e) => HttpResponse::InternalServerError().json(ErrorResponse { message: e.to_string() }),
+        Err(e) => HttpResponse::InternalServerError().json(ErrorResponse::new("Error creating account".to_string(), e.to_string())),
     }
 }
 
 #[post("/auth/login")]
 pub async fn login_account(db: Data<DatabaseRepository>, cred: Json<Credentials>) -> HttpResponse {
-    let user = db.get_account_by_email(&cred.email).await;
-    let account = match user {
-        Ok(user) => match user {
-            Some(user) => user,
-            None => {
-                return HttpResponse::NotFound().json(ErrorResponse {
-                    message: "Account not found".to_string(),
-                })
-            }
-        },
+    let account = match db.get_account_by_email(&cred.email).await {
+        Ok(Some(user)) => user,
+        Ok(None) => {
+            return HttpResponse::NotFound().json(ErrorResponse::new("Error logging in".to_string(), "Account not found".to_string()));
+        }
         Err(e) => {
             log::error!("Error: {}", e);
-            return HttpResponse::InternalServerError().json(ErrorResponse {
-                message: "Internal Server Error".to_string(),
-            });
+            return HttpResponse::InternalServerError().json(ErrorResponse::new("Internal Server Error".to_string(), e.to_string()));
         }
     };
 
@@ -296,9 +282,7 @@ pub async fn login_account(db: Data<DatabaseRepository>, cred: Json<Credentials>
     let app_name = env::var("APP_NAME").unwrap();
     let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
     if token.is_err() {
-        return HttpResponse::InternalServerError().json(ErrorResponse {
-            message: "Failed to encode JWT".to_string(),
-        });
+        return HttpResponse::InternalServerError().json(ErrorResponse::new("Error logging in".to_string(), token.unwrap_err().to_string()));
     }
 
     HttpResponse::Ok().json(AuthResponse { id, token: token.unwrap() })
@@ -339,11 +323,10 @@ pub async fn authenticate_external_account(db: Data<DatabaseRepository>, query: 
                         ];
                         let update_result = db.update_account_many(&user.id.unwrap().to_hex(), updates).await;
                         if update_result.is_err() {
-                            let error_msg = "An account already exists under that email. Error migrating account.";
+                            let error_msg = "An account already exists under that email.";
                             log::error!("{}", error_msg);
-                            return HttpResponse::InternalServerError().json(ErrorResponse {
-                                message: error_msg.to_string(),
-                            });
+                            return HttpResponse::InternalServerError()
+                                .json(ErrorResponse::new("Error migrating account".to_string(), error_msg.to_string()));
                         }
                     }
 
@@ -352,9 +335,7 @@ pub async fn authenticate_external_account(db: Data<DatabaseRepository>, query: 
                     if token.is_err() {
                         let error_msg = "Failed to encode JWT";
                         log::error!("{}", error_msg);
-                        return HttpResponse::InternalServerError().json(ErrorResponse {
-                            message: error_msg.to_string(),
-                        });
+                        return HttpResponse::InternalServerError().json(ErrorResponse::new("Error logging in".to_string(), error_msg.to_string()));
                     }
 
                     HttpResponse::Ok().json(AuthResponse { id, token: token.unwrap() })
@@ -386,25 +367,22 @@ pub async fn authenticate_external_account(db: Data<DatabaseRepository>, query: 
                     let id = result.as_ref().unwrap().inserted_id.as_object_id().unwrap().to_hex();
                     let token = encode_jwt(app_name, id.to_owned(), domain, &secret);
                     if token.is_err() {
-                        return HttpResponse::InternalServerError().json(ErrorResponse {
-                            message: "Failed to encode JWT".to_string(),
-                        });
+                        return HttpResponse::InternalServerError()
+                            .json(ErrorResponse::new("Error creating account".to_string(), token.unwrap_err().to_string()));
                     }
 
                     let response = AuthResponse { id, token: token.unwrap() };
 
                     match result {
                         Ok(_result) => HttpResponse::Created().json(response),
-                        Err(e) => HttpResponse::InternalServerError().json(ErrorResponse { message: e.to_string() }),
+                        Err(e) => HttpResponse::InternalServerError().json(ErrorResponse::new("Error creating account".to_string(), e.to_string())),
                     }
                 }
             }
         }
         Err(e) => {
             log::error!("Error: {}", e);
-            HttpResponse::InternalServerError().json(ErrorResponse {
-                message: "Internal Server Error".to_string(),
-            })
+            HttpResponse::InternalServerError().json(ErrorResponse::new("Error getting account".to_string(), e.to_string()))
         }
     }
 }
@@ -426,19 +404,17 @@ pub async fn get_verification_code(db: Data<DatabaseRepository>, redis: Data<Red
     let email = query.email.to_owned();
 
     // Check if email exists in the database, if it does, return an error
-    let user = db.get_account_by_email(&email).await;
-    match user {
+    match db.get_account_by_email(&email).await {
         Ok(user) => {
             if user.is_some() {
-                return HttpResponse::Conflict().json(ErrorResponse {
-                    message: "Email already exists".to_string(),
-                });
+                return HttpResponse::Conflict().json(ErrorResponse::new(
+                    "Account already exists".to_string(),
+                    "Email already exists".to_string(),
+                ));
             }
         }
-        Err(_) => {
-            return HttpResponse::InternalServerError().json(ErrorResponse {
-                message: "Internal Server Error".to_string(),
-            });
+        Err(e) => {
+            return HttpResponse::InternalServerError().json(ErrorResponse::new("Error getting account".to_string(), e.to_string()));
         }
     }
 
@@ -456,17 +432,13 @@ pub async fn get_verification_code(db: Data<DatabaseRepository>, redis: Data<Red
 
     // Return early if in test environment
     if env::var("ENV").unwrap() == "test" {
-        return HttpResponse::Ok().json(ErrorResponse {
-            message: "Verification code sent".to_string(),
-        });
+        return HttpResponse::Ok().json(MessageResponse::new("Verification code sent".to_string()));
     }
 
     let result = utils::sendgrid::send_email_verification(&email, &name, &code).await;
     match result {
-        Ok(_) => HttpResponse::Ok().json(ErrorResponse {
-            message: "Verification code sent".to_string(),
-        }),
-        Err(e) => HttpResponse::InternalServerError().json(ErrorResponse { message: e.to_string() }),
+        Ok(_) => HttpResponse::Ok().json(MessageResponse::new("Verification code sent".to_string())),
+        Err(e) => HttpResponse::InternalServerError().json(ErrorResponse::new("Error sending email".to_string(), e.to_string())),
     }
 }
 
@@ -481,8 +453,7 @@ pub async fn verify_email(redis: Data<RedisRepository>, query: Query<Verificatio
     let email = query.email.to_owned();
     let code = query.code.to_owned();
 
-    let result = redis.get(&email).await;
-    match result {
+    match redis.get(&email).await {
         Ok(value) => {
             let parts: Vec<&str> = value.split(':').collect();
             let stored_code = parts[0];
@@ -493,15 +464,14 @@ pub async fn verify_email(redis: Data<RedisRepository>, query: Query<Verificatio
                 redis.set(&email, &new_value).await.unwrap();
                 HttpResponse::Ok().json("Email verified")
             } else if status == "used" {
-                HttpResponse::BadRequest().json(ErrorResponse {
-                    message: "This code has already been used".to_string(),
-                })
+                HttpResponse::BadRequest().json(ErrorResponse::new(
+                    "Invalid code".to_string(),
+                    "Code has already been used. Please use a new code.".to_string(),
+                ))
             } else {
-                HttpResponse::Unauthorized().json(ErrorResponse {
-                    message: "Invalid code. Please use a valid code.".to_string(),
-                })
+                HttpResponse::Unauthorized().json(ErrorResponse::new("Invalid code".to_string(), "Unauthorized".to_string()))
             }
         }
-        Err(e) => HttpResponse::InternalServerError().json(ErrorResponse { message: e.to_string() }),
+        Err(e) => HttpResponse::InternalServerError().json(ErrorResponse::new("Error verifying email".to_string(), e.to_string())),
     }
 }
