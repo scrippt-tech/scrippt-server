@@ -110,7 +110,7 @@ impl DatabaseRepository {
 
     /// Update an existing account's name and email
     pub async fn update_account(&self, id: &str, update: AccountPatch) -> Result<UpdateResult, Error> {
-        return self.update_account_many(id, vec![update]).await;
+        self.update_account_many(id, vec![update]).await
     }
 
     // Update an existing account multiple fields
