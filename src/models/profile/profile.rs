@@ -119,8 +119,6 @@ mod tests {
 
         let profile = Profile::from_json(json).unwrap();
 
-        println!("{:#?}", profile);
-
         assert_eq!(profile.education.len(), 1);
         assert_eq!(profile.experience.len(), 4);
         assert_eq!(profile.skills.len(), 3);

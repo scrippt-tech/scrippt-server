@@ -1,7 +1,7 @@
-use crate::ai::ai;
 use crate::handlers::types::ErrorResponse;
 use crate::models::profile::profile::ProfileValue;
 use crate::repository::database::DatabaseRepository;
+use crate::utils::prompt::load_prompt;
 use crate::{auth::user_auth::AuthorizationService, models::profile::profile::Profile};
 use actix_web::{
     patch, post,
@@ -9,6 +9,13 @@ use actix_web::{
     HttpResponse,
 };
 use futures::StreamExt;
+use orca::chains::chain::LLMChain;
+use orca::chains::traits::Execute;
+use orca::llm::openai::client::OpenAIClient;
+use orca::prompt::prompt::PromptTemplate;
+use orca::prompts;
+use orca::record::pdf::PDF;
+use orca::record::spin::Spin;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
@@ -103,54 +110,101 @@ pub async fn change_profile(db: Data<DatabaseRepository>, profile: Json<Vec<Prof
 }
 
 #[post("/resume")]
-pub async fn profile_from_resume(db: Data<DatabaseRepository>, mut payload: Payload, auth: AuthorizationService) -> HttpResponse {
+pub async fn profile_from_resume(
+    client: Data<OpenAIClient>,
+    db: Data<DatabaseRepository>,
+    mut payload: Payload,
+    auth: AuthorizationService,
+) -> HttpResponse {
     let id = auth.id;
     let mut bytes = BytesMut::new();
     while let Some(item) = payload.next().await {
         bytes.extend_from_slice(&item.unwrap());
     }
 
-    let resume_text = match pdf_extract::extract_text_from_mem(&bytes) {
-        Ok(text) => text,
-        Err(e) => {
-            log::error!("Error: {:#?}", e);
-            return HttpResponse::BadRequest().json(ErrorResponse::new("error parsing resume".to_string(), e.to_string()));
-        }
-    };
+    let record = PDF::from_buffer(bytes.to_vec(), false).spin().unwrap();
+    let prompt = load_prompt("parser");
+    if prompt.is_err() {
+        return HttpResponse::InternalServerError().json(ErrorResponse::new(
+            "Error loading parser prompt. Please try again later.".to_string(),
+            prompt.err().unwrap().to_string(),
+        ));
+    }
 
-    log::debug!("Resume: {:#?}", resume_text);
-    // return HttpResponse::Ok().json("temp");
-    let client = ai::AIClient::new();
+    #[derive(Serialize)]
+    struct Data {
+        record: String,
+        record_content: String,
+        format: String,
+    }
 
-    match client.process_resume(resume_text).await {
-        Ok(response) => {
-            let content = response.text;
-            // pretty print content
-            log::debug!("Response: {:#?}", content);
-            let profile = Profile::from_json(&content).unwrap();
-            match db.update_profile(&id, profile).await {
-                Ok(_) => match db.get_account(&id).await {
-                    Ok(user) => HttpResponse::Ok().json(user),
-                    Err(e) => {
-                        log::error!("Error: {:#?}", e);
-                        HttpResponse::InternalServerError().json(ErrorResponse::new("error getting account".to_string(), e.to_string()))
-                    }
-                },
-                Err(e) => {
-                    log::error!("Error: {:#?}", e);
-                    HttpResponse::InternalServerError().json(ErrorResponse::new(
-                        "Error parsing resume. Please make sure your resume is formatted correctly and try again.".to_string(),
-                        e.to_string(),
-                    ))
-                }
+    // Use Orca LLM Orchestrator to parse resume
+    let resume_text = LLMChain::new(client.get_ref(), prompts!(("system", prompt.unwrap().as_str())))
+        .execute(&Data {
+            record: "resume".to_string(),
+            record_content: record.content.to_string(),
+            format: FORMAT.to_string(),
+        })
+        .await;
+
+    if resume_text.is_err() {
+        return HttpResponse::InternalServerError().json(ErrorResponse::new(
+            "Please make sure your resume is formatted correctly and try again.".to_string(),
+            "Error parsing resume.".to_string(),
+        ));
+    }
+
+    let profile = Profile::from_json(&resume_text.unwrap());
+    if profile.is_err() {
+        return HttpResponse::InternalServerError().json(ErrorResponse::new(
+            "Error parsing resume.".to_string(),
+            "Error reading LLM response into JSON format".to_string(),
+        ));
+    }
+    match db.update_profile(&id, profile.unwrap()).await {
+        Ok(_) => match db.get_account(&id).await {
+            Ok(user) => HttpResponse::Ok().json(user),
+            Err(e) => {
+                log::error!("Error: {:#?}", e);
+                HttpResponse::InternalServerError().json(ErrorResponse::new("error getting account".to_string(), e.to_string()))
             }
-        }
+        },
         Err(e) => {
             log::error!("Error: {:#?}", e);
-            HttpResponse::BadRequest().json(ErrorResponse::new("error parsing resume".to_string(), e.to_string()))
+            HttpResponse::InternalServerError().json(ErrorResponse::new(
+                "Error parsing resume. Please make sure your resume is formatted correctly and try again.".to_string(),
+                e.to_string(),
+            ))
         }
     }
 }
+
+const FORMAT: &str = r#"
+{
+    \"education\": [
+        {
+            \"school\": <string>, // name of the school (e.g. University of California, Berkeley)
+            \"degree\": <string>, // degree type (e.g. Bachelor of Science)
+            \"field_of_study\": <string>, // field of study (e.g. Computer Science)
+            \"current\": <bool>, // whether the candidate is currently enrolled
+            \"description\": <string>, // description of the degree (e.g. GPA, honors)
+        }
+    ],
+    \"experience\": [
+        {
+            \"name\": <string>, // name of the position (e.g. HR Manager)
+            \"type\": 'work' | 'volunteer' | 'personal' | 'other', // type of experience
+            \"at\": <string>, // name of the company (e.g. Google)
+            \"current\": <bool>, // whether the candidate currently works here
+            \"description\": <string>, // description of the position (e.g. responsibilities)
+        }
+    ],
+    \"skills\": [
+        {
+            \"skill\": <string>, // name of the skill (e.g. Python, Javascript, Leadership, MacOS)
+        }
+    ],
+}"#;
 
 async fn maxed_profile_field(db: &DatabaseRepository, id: &str, field: &str) -> Result<bool, String> {
     let profile = db.get_account(id).await.unwrap().profile;

@@ -29,9 +29,9 @@ email-address-parser = "1.0.3"
 rand = "0.8.3"
 sendgrid = { version = "0.18.1", features = ["async"] }
 async-openai = "0.9.4"
-pdf-extract = "0.7.0"
 regex = "1.9.4"
 tokio = "1.32.0"
+orca = { git = "https://github.com/scrippt-tech/orca" }
 
 [dev-dependencies]
 more-asserts = "0.3.1"
@@ -41,3 +41,6 @@ serial_test = "1.0.0"
 [[bin]]
 name = "server"
 path = "src/main.rs"
+
+[lib]
+doctest = false

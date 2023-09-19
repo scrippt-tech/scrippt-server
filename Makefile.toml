@@ -11,6 +11,7 @@ APP_NAME="scrippt"
 DOMAIN="localhost"
 GOOGLE_CLIENT_ID="82324295624-32uqo7r4j24etafpr2t0ddqt5b0etmj8.apps.googleusercontent.com"
 GOOGLE_JWK_PATH="./.jwk"
+STANDARD_FONTS="/Users/santiagomedina/.cargo/git/checkouts/orca-6f55422cf8ee2a1b/c5323cc/assets/pdf_fonts"
 
 [env.test]
 ENV="test"
@@ -51,7 +52,14 @@ dependencies = ["docker"]
 condition = { profiles = ["test", "ci"] }
 description = "Run tests"
 command = "cargo"
-args = ["test", "--test", "test_*"]
+args = ["test"]
+dependencies = ["docker"]
+
+[tasks.test-unit]
+condition = { profiles = ["test", "ci"] }
+description = "Run unit tests"
+command = "cargo"
+args = ["test", "--lib"]
 dependencies = ["docker"]
 
 [tasks.test-account]

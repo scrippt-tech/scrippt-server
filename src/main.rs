@@ -6,6 +6,7 @@ use actix_web::{
 };
 use dotenv::dotenv;
 use env_logger::fmt::Color;
+use orca::llm::openai::client::OpenAIClient;
 use server::handlers::{account_handlers, document_handlers, generate_handlers, profile_handlers};
 use server::repository::{database::DatabaseRepository, redis::RedisRepository};
 use std::env;
@@ -60,6 +61,10 @@ async fn main() -> std::io::Result<()> {
     let redis = RedisRepository::new(&env::var("REDIS_URI").unwrap());
     let redis_data = web::Data::new(redis);
 
+    // Orca LLMChain
+    let client = OpenAIClient::new();
+    let client_data = web::Data::new(client);
+
     HttpServer::new(move || {
         let cors = Cors::default()
             .allowed_origin("http://localhost:3000")
@@ -72,6 +77,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(NormalizePath::trim())
             .app_data(redis_data.clone())
             .app_data(db_data.clone())
+            .app_data(client_data.clone())
             .service(
                 web::scope("/account")
                     .service(account_handlers::get_account_by_id)
@@ -83,7 +89,10 @@ async fn main() -> std::io::Result<()> {
                     .service(account_handlers::get_verification_code)
                     .service(account_handlers::verify_email),
             )
-            .route("/health", web::get().to(|| async { "OK" }))
+            .route(
+                "/health",
+                web::get().to(|| async { chrono::Utc::now().format("OK - %Y-%m-%d %H:%M:%S").to_string() }),
+            )
             .service(web::scope("/profile").service(profile_handlers::change_profile).service(profile_handlers::profile_from_resume))
             .service(web::scope("/generate").service(generate_handlers::generate_openai))
             .service(web::scope("/document").service(document_handlers::create_update_document).service(document_handlers::delete_document))
