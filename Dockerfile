@@ -4,7 +4,7 @@
 #
 
 # Use Rust image
-FROM rust:1.66.1 AS builder
+FROM rust:1.72.0 AS builder
 
 # Create app directory
 RUN USER=root cargo new --bin server
