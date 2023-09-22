@@ -10,12 +10,12 @@ use actix_web::{
 };
 use futures::StreamExt;
 use orca::chains::chain::LLMChain;
-use orca::chains::traits::Execute;
-use orca::llm::openai::client::OpenAIClient;
+use orca::chains::Chain;
+use orca::llm::openai::OpenAIClient;
 use orca::prompt::prompt::PromptTemplate;
 use orca::prompts;
 use orca::record::pdf::PDF;
-use orca::record::spin::Spin;
+use orca::record::Spin;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
@@ -139,13 +139,13 @@ pub async fn profile_from_resume(
     }
 
     // Use Orca LLM Orchestrator to parse resume
-    let resume_text = LLMChain::new(client.get_ref(), prompts!(("system", prompt.unwrap().as_str())))
-        .execute(&Data {
-            record: "resume".to_string(),
-            record_content: record.content.to_string(),
-            format: FORMAT.to_string(),
-        })
-        .await;
+    let mut chain = LLMChain::new(client.get_ref()).with_prompt(prompts!(("system", prompt.unwrap().as_str())));
+    chain.set_context(&Data {
+        record: "resume".to_string(),
+        record_content: record.content.to_string(),
+        format: FORMAT.to_string(),
+    });
+    let resume_text = chain.execute().await;
 
     if resume_text.is_err() {
         return HttpResponse::InternalServerError().json(ErrorResponse::new(
@@ -154,7 +154,7 @@ pub async fn profile_from_resume(
         ));
     }
 
-    let profile = Profile::from_json(&resume_text.unwrap());
+    let profile = Profile::from_json(&resume_text.unwrap().get_content());
     if profile.is_err() {
         return HttpResponse::InternalServerError().json(ErrorResponse::new(
             "Error parsing resume.".to_string(),

@@ -2,8 +2,8 @@ use actix_web::web::Data;
 use actix_web::{post, web::Json, HttpResponse};
 
 use orca::chains::chain::LLMChain;
-use orca::chains::traits::Execute;
-use orca::llm::openai::client::OpenAIClient;
+use orca::chains::Chain;
+use orca::llm::openai::OpenAIClient;
 use orca::prompt::prompt::PromptTemplate;
 use orca::prompts;
 use serde::{Deserialize, Serialize};
@@ -56,10 +56,12 @@ pub async fn generate_openai(client: Data<OpenAIClient>, data: Json<Highlights>,
         prompt: data.prompt.to_owned(),
     };
 
-    let response = LLMChain::new(client.get_ref(), prompts!(("system", prompt.unwrap().as_str()))).execute(&prompt_data).await;
+    let mut chain = LLMChain::new(client.get_ref()).with_prompt(prompts!(("system", prompt.unwrap().as_str())));
+    chain.set_context(&prompt_data);
+    let response = chain.execute().await;
 
     match response {
-        Ok(response) => HttpResponse::Ok().json(GenerateResponse::new(response)),
+        Ok(response) => HttpResponse::Ok().json(GenerateResponse::new(response.get_content())),
         Err(e) => {
             log::error!("Error: {:#?}", e);
             HttpResponse::BadRequest().json(ErrorResponse::new("".to_string(), "Error generating response.".to_string()))
