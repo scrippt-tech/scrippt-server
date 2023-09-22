@@ -2514,7 +2514,7 @@ dependencies = [
 [[package]]
 name = "orca"
 version = "0.1.0"
-source = "git+https://github.com/scrippt-tech/orca#0c1720f8bca674e24fa37232076d6d30c5b074ad"
+source = "git+https://github.com/scrippt-tech/orca#3ef9b73cc360a0c24727401b3dfc90a4846268f7"
 dependencies = [
  "async-openai 0.14.2",
  "async-trait",

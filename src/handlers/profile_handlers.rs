@@ -12,7 +12,7 @@ use futures::StreamExt;
 use orca::chains::chain::LLMChain;
 use orca::chains::Chain;
 use orca::llm::openai::OpenAIClient;
-use orca::prompt::prompt::PromptTemplate;
+use orca::prompt::prompt::PromptEngine;
 use orca::prompts;
 use orca::record::pdf::PDF;
 use orca::record::Spin;
@@ -134,17 +134,16 @@ pub async fn profile_from_resume(
     #[derive(Serialize)]
     struct Data {
         record: String,
-        record_content: String,
         format: String,
     }
 
     // Use Orca LLM Orchestrator to parse resume
     let mut chain = LLMChain::new(client.get_ref()).with_prompt(prompts!(("system", prompt.unwrap().as_str())));
-    chain.set_context(&Data {
+    chain.load_context(&Data {
         record: "resume".to_string(),
-        record_content: record.content.to_string(),
         format: FORMAT.to_string(),
     });
+    chain.load_record("record", record);
     let resume_text = chain.execute().await;
 
     if resume_text.is_err() {
@@ -154,7 +153,7 @@ pub async fn profile_from_resume(
         ));
     }
 
-    let profile = Profile::from_json(&resume_text.unwrap().get_content());
+    let profile = Profile::from_json(&resume_text.unwrap().content());
     if profile.is_err() {
         return HttpResponse::InternalServerError().json(ErrorResponse::new(
             "Error parsing resume.".to_string(),
