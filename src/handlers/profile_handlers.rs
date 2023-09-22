@@ -143,7 +143,7 @@ pub async fn profile_from_resume(
         record: "resume".to_string(),
         format: FORMAT.to_string(),
     });
-    chain.load_record("record", record);
+    chain.load_record("record_content", record);
     let resume_text = chain.execute().await;
 
     if resume_text.is_err() {
