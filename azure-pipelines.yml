@@ -14,7 +14,7 @@ variables:
   imageRepository: "scrippt-server"
   containerRegistry: "scripptprod.azurecr.io"
   dockerfilePath: "**/Dockerfile"
-  tag: "latest"
+  tag: "$(Build.BuildId)"
   imagePullSecret: "scripptprod94747831-auth"
 
   # Agent VM image name

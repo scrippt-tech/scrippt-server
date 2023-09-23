@@ -4,20 +4,27 @@
 #
 
 # Use Rust image
-FROM rust:1.72.0 AS builder
+FROM lukemathwalker/cargo-chef:latest-rust-latest AS chef
 
 # Create app directory
-RUN USER=root cargo new --bin server
+RUN USER=root
 WORKDIR /server
 
-# Copy your directory over
-ADD . ./
+# Prepare dependencies
+FROM chef as planner
+COPY . ./
+RUN cargo chef prepare --recipe-path recipe.json
+
+# Build dependencies
+FROM chef as builder
+COPY --from=planner /server/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
 
 # Build for release
-RUN cargo build --release
+RUN cargo build --release --bin server
 
 # Use minimal Debian image and set APP variable
-FROM debian:bullseye-slim
+FROM debian:buster-slim AS runtime
 ARG APP=/usr/src/app
 
 # Install OpenSSL and CA certificates
@@ -44,4 +51,5 @@ USER $APP_USER
 WORKDIR ${APP}
 
 # Run the binary
-CMD ["./server"]
+RUN ls -a
+CMD [ "./server" ]

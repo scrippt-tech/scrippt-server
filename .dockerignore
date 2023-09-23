@@ -13,5 +13,9 @@ bin/
 .git
 .gitignore
 
+# Rust binaries
+target/
+
 # Docker
 Dockerfile
+*.log
