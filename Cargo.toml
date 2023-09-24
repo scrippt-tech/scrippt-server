@@ -32,6 +32,7 @@ async-openai = "0.9.4"
 regex = "1.9.4"
 tokio = "1.32.0"
 orca = { git = "https://github.com/scrippt-tech/orca" }
+lazy_static = "1.4.0"
 
 [dev-dependencies]
 more-asserts = "0.3.1"

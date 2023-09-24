@@ -3690,6 +3690,7 @@ dependencies = [
  "env_logger",
  "futures",
  "jsonwebtoken",
+ "lazy_static",
  "log",
  "mongodb",
  "more-asserts",

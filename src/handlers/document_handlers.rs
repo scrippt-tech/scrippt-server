@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     auth::user_auth::AuthorizationService,
     handlers::types::ErrorResponse,
-    models::document::document::{Document, Rating},
+    models::document::{Document, Rating},
     repository::database::DatabaseRepository,
 };
 

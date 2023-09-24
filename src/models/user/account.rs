@@ -1,5 +1,5 @@
-use crate::models::document::document::Document;
-use crate::models::profile::profile::Profile;
+use crate::models::document::Document;
+use crate::models::profile::Profile;
 use serde::{Deserialize, Serialize};
 
 /// A struct representing an account.

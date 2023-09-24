@@ -11,13 +11,13 @@ use serde_json;
 
 use crate::{
     handlers::types::AccountPatch,
-    models::{document::document::Rating, profile::profile::Profile},
+    models::{document::Rating, profile::Profile},
 };
 
-use crate::models::document::document::Document;
-use crate::models::profile::profile::ProfileValue;
+use crate::models::document::Document;
+use crate::models::profile::ProfileValue;
 use crate::models::traits::{GetFieldId, UpdateFieldId};
-use crate::models::user::{account::Account, user::User};
+use crate::models::user::{account::Account, User};
 
 pub struct DatabaseRepository {
     pub user_collection: Collection<User>,

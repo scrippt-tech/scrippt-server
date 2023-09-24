@@ -1,8 +1,8 @@
 use crate::handlers::types::ErrorResponse;
-use crate::models::profile::profile::ProfileValue;
+use crate::models::profile::ProfileValue;
+use crate::prompts::PARSER;
 use crate::repository::database::DatabaseRepository;
-use crate::utils::prompt::load_prompt;
-use crate::{auth::user_auth::AuthorizationService, models::profile::profile::Profile};
+use crate::{auth::user_auth::AuthorizationService, models::profile::Profile};
 use actix_web::{
     patch, post,
     web::{BytesMut, Data, Json, Payload},
@@ -123,13 +123,7 @@ pub async fn profile_from_resume(
     }
 
     let record = PDF::from_buffer(bytes.to_vec(), false).spin().unwrap();
-    let prompt = load_prompt("parser");
-    if prompt.is_err() {
-        return HttpResponse::InternalServerError().json(ErrorResponse::new(
-            "Error loading parser prompt. Please try again later.".to_string(),
-            prompt.err().unwrap().to_string(),
-        ));
-    }
+    let prompt = *PARSER;
 
     #[derive(Serialize)]
     struct Data {
@@ -138,7 +132,7 @@ pub async fn profile_from_resume(
     }
 
     // Use Orca LLM Orchestrator to parse resume
-    let mut chain = LLMChain::new(client.get_ref()).with_prompt(prompts!(("system", prompt.unwrap().as_str())));
+    let mut chain = LLMChain::new(client.get_ref()).with_prompt(prompts!(("system", prompt)));
     chain.load_context(&Data {
         record: "resume".to_string(),
         format: FORMAT.to_string(),

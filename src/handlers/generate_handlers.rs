@@ -10,8 +10,8 @@ use orca::prompts;
 
 use crate::auth::user_auth::AuthorizationService;
 use crate::handlers::types::ErrorResponse;
-use crate::models::profile::{education::Education, experience::Experience, profile::Profile, skills::Skills};
-use crate::utils::prompt::load_prompt;
+use crate::models::profile::{education::Education, experience::Experience, skills::Skills, Profile};
+use crate::prompts::RESPONSE;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Highlights {
@@ -43,10 +43,7 @@ struct PromptData {
 
 #[post("/response")]
 pub async fn generate_openai(client: Data<OpenAIClient>, data: Json<Highlights>, _auth: AuthorizationService) -> HttpResponse {
-    let prompt = load_prompt("response");
-    if load_prompt("response").is_err() {
-        return HttpResponse::InternalServerError().json(ErrorResponse::new("error loading prompt".to_string(), prompt.err().unwrap().to_string()));
-    }
+    let prompt = *RESPONSE;
 
     let prompt_data = PromptData {
         experience: data.profile.experience.to_owned(),
@@ -56,7 +53,7 @@ pub async fn generate_openai(client: Data<OpenAIClient>, data: Json<Highlights>,
         prompt: data.prompt.to_owned(),
     };
 
-    let mut chain = LLMChain::new(client.get_ref()).with_prompt(prompts!(("system", prompt.unwrap().as_str())));
+    let mut chain = LLMChain::new(client.get_ref()).with_prompt(prompts!(("system", prompt)));
     chain.load_context(&prompt_data);
     let response = chain.execute().await;
 

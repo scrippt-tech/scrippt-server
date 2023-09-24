@@ -1,4 +1,4 @@
-use super::{document::Document, document::Rating};
+use super::{Document, Rating};
 use crate::models::traits::{GetFieldId, UpdateFieldId};
 use bson::Bson;
 

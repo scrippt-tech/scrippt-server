@@ -1,23 +1,44 @@
-# Using the `rust-musl-builder` as base image, instead of 
-# the official Rust toolchain
-FROM clux/muslrust:stable AS chef
-USER root
-RUN cargo install cargo-chef
+# Configuration file for the Scrippt API Server Docker container
+#
+# Scrippt (c) 2023 by Scrippt
+#
+
+# Use Rust image
+FROM rust:1.69.0 AS builder
+
+# Create app directory
+RUN USER=root cargo new --bin server
 WORKDIR /server
 
-FROM chef AS planner
-COPY . .
-RUN cargo chef prepare --recipe-path recipe.json
+# Copy your directory over
+ADD . ./
 
-FROM chef AS builder
-COPY --from=planner /server/recipe.json recipe.json
-# Notice that we are specifying the --target flag!
-RUN cargo chef cook --release --target x86_64-unknown-linux-musl --recipe-path recipe.json
-COPY . .
-RUN cargo build --release --target x86_64-unknown-linux-musl --bin server
+# Build for release
+RUN cargo build --release
 
-FROM alpine AS runtime
-RUN addgroup -S myuser && adduser -S myuser -G myuser
-COPY --from=builder /server/target/x86_64-unknown-linux-musl/release/server /usr/local/bin/
-USER myuser
-CMD ["/usr/local/bin/server"]
+# Use minimal Debian image and set APP variable
+FROM debian:bullseye-slim
+ARG APP=/usr/src/app
+
+# Install OpenSSL and CA certificates
+RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+
+# Set environment variables
+ENV TZ=Etc/UTC \
+    APP_USER=appuser
+
+# Create appuser
+RUN groupadd $APP_USER && \
+    useradd -g $APP_USER $APP_USER \
+    && mkdir -p ${APP}
+
+# Copy the build artifact from the build stage
+COPY --from=builder /server/target/release/server ${APP}/server
+RUN chown -R $APP_USER:$APP_USER ${APP}
+
+# Run the binary as non-root user
+USER $APP_USER
+WORKDIR ${APP}
+
+# Run the binary
+CMD ["./server"]

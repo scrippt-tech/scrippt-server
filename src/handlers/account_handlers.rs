@@ -14,7 +14,7 @@ use crate::{
     auth::jwt::{decode_google_token_id, encode_jwt, GoogleAuthClaims},
     repository::redis::RedisRepository,
 };
-use crate::{models::profile::profile::Profile, models::user::user::User, repository::database::DatabaseRepository};
+use crate::{models::profile::Profile, models::user::User, repository::database::DatabaseRepository};
 
 use super::types::MessageResponse;
 

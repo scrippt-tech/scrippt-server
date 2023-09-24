@@ -167,7 +167,7 @@ async fn get_latest_keys(file_path: &str) -> Result<GoogleJwkSet, Error> {
     let jwk = res.json::<JwkSet>().await.unwrap();
     let jwk = GoogleJwkSet { max_age, keys: jwk.keys };
 
-    // Write JWKs to google_jwk.json
+    // Write JWKs to specified path
     fs::write(file_path, serde_json::to_string(&jwk).unwrap()).unwrap_or_else(|err| {
         log::error!("Error writing JWKs to file {:?}: {:?}", file_path, err);
         panic!();

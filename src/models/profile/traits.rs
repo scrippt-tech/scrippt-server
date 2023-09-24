@@ -1,4 +1,4 @@
-use crate::models::profile::{education::Education, experience::Experience, experience::ExperienceType, profile::ProfileValue, skills::Skills};
+use crate::models::profile::{education::Education, experience::Experience, experience::ExperienceType, skills::Skills, ProfileValue};
 use crate::models::traits::{GetFieldId, UpdateFieldId};
 use bson::oid::ObjectId;
 
