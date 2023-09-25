@@ -391,7 +391,6 @@ impl DatabaseRepository {
 
     /// Drop the database. WARNING: This is only for testing purposes
     /// and should not be used in production
-    /// DO NOT CALL THIS FUNCTION IN PRODUCTION
     #[allow(dead_code)]
     pub async fn drop_database(&self) -> Result<(), Error> {
         if std::env::var("ENV").unwrap() != "test" {

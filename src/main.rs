@@ -27,6 +27,7 @@ async fn main() -> std::io::Result<()> {
     env::var("ENV").expect("ENV must be set");
     env::var("APP_NAME").expect("APP_NAME must be set");
     env::var("DOMAIN").expect("DOMAIN must be set");
+    env::var("STANDARD_FONTS").expect("STANDARD_FONTS must be set");
 
     // Build logger
     env_logger::builder()

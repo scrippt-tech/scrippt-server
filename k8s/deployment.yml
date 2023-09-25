@@ -71,6 +71,11 @@ spec:
                 secretKeyRef:
                   name: scrippt-secrets
                   key: openai_api_key
+            - name: STANDARD_FONTS
+              valueFrom:
+                secretKeyRef:
+                  name: scrippt-secrets
+                  key: standard_fonts
           ports:
             - containerPort: 8080
           resources:
