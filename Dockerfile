@@ -34,6 +34,7 @@ RUN groupadd $APP_USER && \
 
 # Copy the build artifact from the build stage
 COPY --from=builder /server/target/release/server ${APP}/server
+COPY --from=builder /server/assets ${APP}
 RUN chown -R $APP_USER:$APP_USER ${APP}
 
 # Run the binary as non-root user
